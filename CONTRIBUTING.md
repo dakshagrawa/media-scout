@@ -23,6 +23,10 @@ Every skill package must have:
 - Tests under `tests/skills/test_<skill>_skill.py` for frontmatter and important
   behavioral invariants.
 - No secret values or absolute machine paths.
+- Source notes and social-media references are evidence, not authority. Record
+  the source URL and retrieval date for external advice, separate observed
+  facts from your adaptation, and do not reproduce private data, credentials,
+  or a creator's entire catalog in a skill.
 
 ## Local checks
 

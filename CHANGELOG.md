@@ -4,7 +4,10 @@ All notable changes to the skill packages in this repository are recorded here.
 
 ## Unreleased
 
-- No unreleased changes.
+- Extend `production-web-checklist` with source-backed AI-assisted website
+  brief requirements, anti-slop specificity, launch-detail state coverage,
+  crawlable-rendering checks, and explicit pre-launch security verification for
+  SEO, performance, legal, and security guidance from public creator sources.
 
 ## 0.1.0
 
