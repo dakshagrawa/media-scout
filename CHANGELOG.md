@@ -26,6 +26,12 @@ All notable changes to the skill packages in this repository are recorded here.
   “no policies” as missing essentials to address contextually, not as features
   to remove.
 
+- Tune `production-web-checklist` for Hermes Agent with native tool selection,
+  skill discovery, clarification, bounded delegation, secure browser
+  authentication, toolset-availability handling, and explicit approval/read-back
+  gates for external side effects. Preserve all prior workflow content and bump
+  the skill package to 0.4.0.
+
 ## 0.1.0
 
 - Initial publication of `production-web-checklist`.
