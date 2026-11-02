@@ -4,6 +4,12 @@ All notable changes to the skill packages in this repository are recorded here.
 
 ## Unreleased
 
+- Fix false media-intake blockers in `media-evidence-library` 0.1.1: look up
+  auto-thread starter messages in the actual parent channel; treat an exact
+  missing catalog record as the creation path and continue in the same run.
+  Add source-provenance guidance and an offline regression contract. No broader
+  Discord permissions or new custom runtime code is required.
+
 - Require only the Python 3.10 and 3.13 Ubuntu jobs for normal changes. Preserve
   macOS/Windows coverage through manual workflow dispatch, with unchanged pinned
   actions, read-only workflow permissions and the full contract test suite.

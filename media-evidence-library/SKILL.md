@@ -1,7 +1,7 @@
 ---
 name: media-evidence-library
 description: Capture, review and recall source-backed media evidence.
-version: 0.1.0
+version: 0.1.1
 author: Daksh Agrawal (dakshagrawa), Hermes Agent
 license: MIT
 platforms: [linux]
@@ -26,7 +26,7 @@ Collect real audiovisual/document evidence, preserve its provenance and return c
 Resolve the active profile home and read its library policy. Configure permitted tools, owner/channel access, a separate reviewer and return subscription using native Hermes setup. See the [storage contract](references/storage.md), [native routing](references/routing.md) and [retention procedure](references/retention.md). Review any acquisition dependency through native admission; this package installs no executable or model and grants no third-party exception.
 
 ## Procedure
-1. **Identify and reuse.** Preserve the original URL and the canonical source ID separately. Ignore non-content tracking for deduplication, but preserve slide/timestamp context and functional retrieval parameters. Read the existing record before download, transcription or vision. Reuse sufficient evidence and matching tasks/results; retry only missing components. Do not infer semantic repost identity or an atomic lock.
+1. **Identify and reuse.** Preserve the original URL and the canonical source ID separately. Ignore non-content tracking for deduplication, but preserve slide/timestamp context and functional retrieval parameters. Read the exact record before download, transcription or vision. `not_found` means create the verified receipt and initial record, not a blocker. Follow [source provenance and new-item creation](references/source-provenance.md): an auto-thread starter is in the parent channel, not the child replies. Reuse sufficient evidence and matching tasks/results; retry only missing components. Do not infer semantic repost identity or an atomic lock.
 2. **Extract real evidence.** Use admitted native/upstream tools. Inspect speech and sampled visuals for videos, and every submitted image in order for carousels. Keep actual timestamps, identifiers, observations, source claims and uncertainties separate. Captions alone are not a watched reel. On access failure request an upload, not credentials or a bypass.
 3. **Persist honestly.** Store substantial concise JSON, readable Markdown, real raw/cache paths, coverage, dates and source-thread links according to the storage contract. Do not save secrets or unrelated history. Unknown or expired evidence is not complete evidence.
 4. **Route under consent.** With explicit owner standing authorization recorded in local policy, post a non-blocking preview and automatically send compact versioned evidence to the reviewer. There is no additional per-item approval in that enabled mode. Defaults in this public package are inert until configured. Honor local-only, stop, defer and reject. Never bulk-forward history or fixture/test content without an explicitly isolated acceptance authorization.

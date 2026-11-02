@@ -21,7 +21,7 @@ def test_media_skill_frontmatter_and_actionable_sections():
     assert meta["name"] == "media-evidence-library"
     assert len(meta["description"]) <= 60 and meta["description"].endswith(".")
     assert meta["author"].startswith("Daksh Agrawal")
-    assert meta["version"] == "0.1.0"
+    assert meta["version"] == "0.1.1"
     assert meta["platforms"] == ["linux"]
     assert meta["metadata"]["hermes"]["category"] == "productivity"
     assert meta["metadata"]["hermes"]["related_skills"] == []
@@ -173,3 +173,13 @@ def test_ci_uses_two_linux_jobs_and_manual_cross_platform_matrix():
     assert json.loads(required_matrix[1]) == ["ubuntu-latest"]
     assert 'elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]' in workflow
     assert "git diff-tree --check --root -r HEAD" in workflow
+
+
+def test_auto_thread_parent_lookup_and_new_record_creation_are_explicit():
+    skill = SKILL.read_text(encoding="utf-8")
+    provenance = (ROOT / "media-evidence-library/references/source-provenance.md").read_text(encoding="utf-8")
+    assert "references/source-provenance.md" in skill
+    for phrase in ["parent", "not_found", "CREATE", "same run", "bot progress", "exact", "headless", "verified", "No broader permissions"]:
+        assert phrase in provenance
+    assert "not a blocker" in skill
+    assert "similar_files" in provenance
