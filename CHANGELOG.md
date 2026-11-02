@@ -4,6 +4,16 @@ All notable changes to the skill packages in this repository are recorded here.
 
 ## Unreleased
 
+- Rename the same public repository from `agent-skills` to `hermes-workflows`,
+  preserving existing skill paths, Git history and contributor attribution.
+- Add portable `media-evidence-library` 0.1.0, Media Scout workflow templates,
+  source-attributed learning/review contracts, an HTML diagram and acceptance
+  boundaries. Public defaults remain inactive until local owner authorization.
+- Archive the optional base-specific native naming patch with integrity metadata
+  and the upstream license; no automatic patch application or runtime service.
+- Add offline contracts for privacy, inert defaults, links, patch provenance and
+  workflow safety. No private runtime data is included.
+
 - Extend `production-web-checklist` with source-backed AI-assisted website
   brief requirements, anti-slop specificity, launch-detail state coverage,
   crawlable-rendering checks, and explicit pre-launch security verification for

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "catalog_format": "one_json_record_per_media_id",
+  "automatic_forwarding": false,
+  "automatic_forwarding_scope": "requires owner-enabled new-submission review-only consent",
+  "automatic_installation": false,
+  "automatic_catalog_expiry": false,
+  "cleanup_mode": "report-only",
+  "evidence_retention_days": 90,
+  "media_cache_retention_days": 7,
+  "evidence_retention_basis": "last_explicit_user_revisit_at_or_extracted_at",
+  "pinned_items_exempt": true,
+  "active_extraction_or_review_exempt": true,
+  "cleanup_max_records": 100,
+  "cleanup_max_files": 100,
+  "cleanup_max_bytes": 52428800,
+  "concurrency_guarantee": "instruction-guided, not transactional locking",
+  "cleanup_authorization": null,
+  "cleanup_qualification": null,
+  "review_authorization": null
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "media_id": "example_item",
+  "original_source_url": "https://example.invalid/media/example_item?tracking=example",
+  "source_url": "https://example.invalid/media/example_item",
+  "media_type": "example",
+  "title": "Synthetic schema illustration, not ingested media",
+  "summary": "Example structure only; no actual media evidence or verified user fact.",
+  "topics": [],
+  "entities": [],
+  "creator_claims": [],
+  "coverage": {
+    "limitations": [
+      "No actual media was processed."
+    ]
+  },
+  "extraction_status": "pending",
+  "review_status": "not_requested",
+  "evidence_status": "unavailable",
+  "created_at": null,
+  "updated_at": null,
+  "extracted_at": null,
+  "last_explicit_user_revisit_at": null,
+  "cache_created_at": null,
+  "pinned": false,
+  "active_extraction": null,
+  "active_review": null,
+  "evidence_path": "evidence/example_item.md",
+  "cache_path": "cache/example_item",
+  "source_threads": [],
+  "review_tasks": [],
+  "retained_knowledge": null
+}

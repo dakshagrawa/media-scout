@@ -1,0 +1,254 @@
+diff --git a/plugins/platforms/discord/adapter.py b/plugins/platforms/discord/adapter.py
+index e4a155574f..dcc2973105 100644
+--- a/plugins/platforms/discord/adapter.py
++++ b/plugins/platforms/discord/adapter.py
+@@ -1216,7 +1216,7 @@ def _env_bool(name: str, default: bool = False) -> bool:
+ from plugins.platforms.discord.adapter_media import DiscordMediaMixin
+ from plugins.platforms.discord.adapter_authorization import DiscordAuthorizationMixin
+ from plugins.platforms.discord.adapter_slash_auth import DiscordSlashAuthMixin
+-from plugins.platforms.discord.adapter_thread_titles import DiscordThreadTitlesMixin, SemanticThreadRenames
++from .adapter_thread_titles import DiscordThreadTitlesMixin, SemanticThreadRenames
+ from plugins.platforms.discord.adapter_voice_info import DiscordVoiceInfoMixin
+ 
+ 
+@@ -5466,6 +5466,7 @@ class DiscordAdapter(DiscordAuthorizationMixin, DiscordMediaMixin, DiscordThread
+             thread_name = thread_name[:77] + "..."
+         return thread_name
+ 
++
+     @staticmethod
+     def _stamp_auto_thread_name(thread: Any, thread_name: str) -> Any:
+         """Remember the placeholder name so the semantic rename can verify it wasn't changed by a human."""
+@@ -5482,7 +5483,8 @@ class DiscordAdapter(DiscordAuthorizationMixin, DiscordMediaMixin, DiscordThread
+         ``Cannot connect to host discord.com:443``) don't immediately burn through to the caller's failure
+         path (#20243).
+         """
+-        thread_name = self._derive_auto_thread_name(message.content or "")
++        content = message.content or ""
++        thread_name = self._auto_thread_media_id_name(content) or self._derive_auto_thread_name(content)
+         display_name = getattr(getattr(message, "author", None), "display_name", None) or "unknown user"
+         reason = f"Auto-threaded from mention by {display_name}"
+         last_direct_error: Exception | None = None
+@@ -5534,6 +5536,8 @@ class DiscordAdapter(DiscordAuthorizationMixin, DiscordMediaMixin, DiscordThread
+             logger.debug("[%s] Failed to resolve Discord thread %s for rename", self.name, thread_id, exc_info=True)
+             return False
+         current_name = getattr(thread, "name", None)
++        if self._auto_thread_media_ids_enabled() and only_if_current_name is not None and re.fullmatch(r"instagram_[A-Za-z0-9_-]{1,30}", str(only_if_current_name)):
++            return False
+         if only_if_current_name is not None and current_name != only_if_current_name:
+             logger.info(
+                 "[%s] Discord semantic thread rename skipped for %s: current name %r != expected %r",
+@@ -7293,6 +7297,10 @@ def _apply_yaml_config(yaml_cfg: dict, discord_cfg: dict) -> dict | None:
+     _discord_rtm = discord_cfg["reply_to_mode"] if "reply_to_mode" in discord_cfg else _discord_extra.get("reply_to_mode")
+     if _discord_rtm is not None:
+         _env_default("DISCORD_REPLY_TO_MODE", "off" if _discord_rtm is False else str(_discord_rtm).lower())
++    if isinstance(_discord_extra, dict) and "auto_thread_media_ids" in _discord_extra:
++        seeded_extra["auto_thread_media_ids"] = _discord_extra["auto_thread_media_ids"]
++    elif isinstance(discord_cfg, dict) and "auto_thread_media_ids" in discord_cfg:
++        seeded_extra["auto_thread_media_ids"] = discord_cfg["auto_thread_media_ids"]
+     # Public config keys win over the generic ``extra`` form.
+     _websocket_liveness_cfg = {**_discord_extra, **discord_cfg}
+     # WebSocket health knobs (REST 200 is not Gateway health); legacy liveness_* aliases accepted.
+diff --git a/plugins/platforms/discord/adapter_thread_titles.py b/plugins/platforms/discord/adapter_thread_titles.py
+index c1557f7234..27c95ba29a 100644
+--- a/plugins/platforms/discord/adapter_thread_titles.py
++++ b/plugins/platforms/discord/adapter_thread_titles.py
+@@ -8,10 +8,14 @@ restart each renamed thread re-renders once.
+ """
+ from __future__ import annotations
+ 
++import re
+ from collections.abc import Callable, Iterator
+ from contextlib import contextmanager
+ from dataclasses import dataclass
+ from typing import Any
++from urllib.parse import urlsplit
++
++from utils import is_truthy_value
+ 
+ try:
+     import discord
+@@ -19,6 +23,27 @@ except ImportError:  # the adapter does not start without discord.py
+     discord = None
+ 
+ _MAX_RECORDS = 2000
++_INSTAGRAM_URL = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
++_INSTAGRAM_SHORTCODE = re.compile(r"[A-Za-z0-9_-]{1,30}\Z")
++
++
++def instagram_media_shortcode(text: str) -> str | None:
++    """Return one unambiguous public Instagram media shortcode; never dereference input."""
++    found: set[str] = set()
++    for raw in _INSTAGRAM_URL.findall(text or ""):
++        candidate = raw.rstrip(".,!?;:)")
++        try:
++            parsed = urlsplit(candidate)
++            if parsed.scheme.lower() not in {"http", "https"} or parsed.hostname not in {"instagram.com", "www.instagram.com"}:
++                continue
++            if parsed.username is not None or parsed.password is not None or parsed.port is not None:
++                continue
++        except ValueError:
++            continue
++        match = re.fullmatch(r"/(?:p|reel|tv)/([A-Za-z0-9_-]{1,30})/?", parsed.path)
++        if match and _INSTAGRAM_SHORTCODE.fullmatch(match.group(1)):
++            found.add(match.group(1))
++    return next(iter(found)) if len(found) == 1 else None
+ 
+ 
+ @dataclass
+@@ -76,10 +101,20 @@ class SemanticThreadRenames:
+ 
+ 
+ class DiscordThreadTitlesMixin:
++    config: Any
+     _semantic_thread_renames: SemanticThreadRenames
+     _is_forum_parent: Callable[[Any], bool]
+     _get_effective_topic: Callable[..., str | None]
+ 
++    def _auto_thread_media_ids_enabled(self) -> bool:
++        return is_truthy_value((getattr(self.config, "extra", None) or {}).get("auto_thread_media_ids"))
++
++    def _auto_thread_media_id_name(self, content: str) -> str | None:
++        if not self._auto_thread_media_ids_enabled():
++            return None
++        shortcode = instagram_media_shortcode(content)
++        return f"instagram_{shortcode}" if shortcode else None
++
+     async def _on_platform_raw_thread_update(self, payload: Any) -> None:
+         # discord.py updates the cached thread before cached callbacks run, so batched updates
+         # would all report the final name; each raw payload keeps its own.
+diff --git a/tests/gateway/test_discord_auto_thread_media_ids.py b/tests/gateway/test_discord_auto_thread_media_ids.py
+new file mode 100644
+index 0000000000..de691b04bc
+--- /dev/null
++++ b/tests/gateway/test_discord_auto_thread_media_ids.py
+@@ -0,0 +1,109 @@
++"""Behavioral coverage for opt-in Instagram shortcode auto-thread names."""
++from types import SimpleNamespace
++from unittest.mock import AsyncMock
++
++import pytest
++
++from gateway.platforms.base import PlatformConfig
++from plugins.platforms.discord.adapter import DiscordAdapter
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("path", ["/p/AbC_123/", "/reel/AbC_123?igsh=tracking#frag", "/tv/AbC_123"])
++async def test_opt_in_names_thread_from_single_instagram_shortcode(path):
++    adapter = DiscordAdapter(PlatformConfig(enabled=True, extra={"auto_thread_media_ids": True}))
++    created = SimpleNamespace(name=None)
++    message = SimpleNamespace(content=f"Please look https://www.instagram.com{path}", author=SimpleNamespace(display_name="Alice"))
++    message.create_thread = AsyncMock(side_effect=lambda *, name, **kw: (setattr(created, "name", name) or created))
++    thread = await adapter._auto_create_thread(message)
++    assert thread is created
++    assert created.name == "instagram_AbC_123"
++
++
++@pytest.mark.parametrize("url", [
++    "https://instagram.com.evil/p/code", "https://instagram.com@evil.test/p/code",
++    "https://instagram.com/p/../code", "https://instagram.com/p/code/extra",
++    "https://instagram.com/p/a.b", "https://instagram.com/p/" + "a" * 80,
++    "https://example.test/?url=https://instagram.com/p/code",
++])
++def test_instagram_shortcode_parser_rejects_noncanonical_urls(url):
++    from plugins.platforms.discord.adapter_thread_titles import instagram_media_shortcode
++    assert instagram_media_shortcode(url) is None
++
++
++def test_instagram_shortcode_parser_collapses_duplicate_urls_and_rejects_distinct_ids():
++    from plugins.platforms.discord.adapter_thread_titles import instagram_media_shortcode
++    assert instagram_media_shortcode("https://instagram.com/p/AbC https://www.instagram.com/p/AbC?x=1") == "AbC"
++    assert instagram_media_shortcode("https://instagram.com/p/AbC https://instagram.com/p/Other") is None
++
++
++@pytest.mark.asyncio
++async def test_opt_in_falls_back_to_original_name_when_multiple_instagram_ids():
++    adapter = DiscordAdapter(PlatformConfig(enabled=True, extra={"auto_thread_media_ids": True}))
++    message = SimpleNamespace(content="https://instagram.com/p/one https://instagram.com/p/two", author=SimpleNamespace(display_name="Alice"))
++    message.create_thread = AsyncMock(side_effect=lambda *, name, **kw: SimpleNamespace(name=name))
++    thread = await adapter._auto_create_thread(message)
++    assert thread.name == message.content
++
++
++@pytest.mark.asyncio
++async def test_default_off_and_semantic_guard_do_not_overwrite_canonical_title():
++    adapter = DiscordAdapter(PlatformConfig(enabled=True))
++    message = SimpleNamespace(content="https://instagram.com/p/AbC_123", author=SimpleNamespace(display_name="Alice"))
++    message.create_thread = AsyncMock(side_effect=lambda *, name, **kw: SimpleNamespace(name=name))
++    assert (await adapter._auto_create_thread(message)).name.startswith("https://")
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("enabled", [True, False])
++async def test_semantic_title_guard_is_scoped_to_opt_in(monkeypatch, enabled):
++    import plugins.platforms.discord.adapter as module
++    monkeypatch.setattr(module, "DISCORD_AVAILABLE", True)
++    thread = SimpleNamespace(name="instagram_AbC_123", edit=AsyncMock())
++    adapter = DiscordAdapter(PlatformConfig(enabled=True, extra={"auto_thread_media_ids": enabled}))
++    adapter._client = SimpleNamespace(get_channel=lambda _id: thread)
++    changed = await adapter.rename_thread("800", "Descriptive title", only_if_current_name=thread.name)
++    assert changed is (not enabled)
++    assert thread.edit.await_count == int(not enabled)
++
++
++@pytest.mark.asyncio
++async def test_explicit_rename_remains_available_for_opt_in(monkeypatch):
++    import plugins.platforms.discord.adapter as module
++    monkeypatch.setattr(module, "DISCORD_AVAILABLE", True)
++    thread = SimpleNamespace(name="instagram_AbC_123", edit=AsyncMock())
++    adapter = DiscordAdapter(PlatformConfig(enabled=True, extra={"auto_thread_media_ids": True}))
++    adapter._client = SimpleNamespace(get_channel=lambda _id: thread)
++    assert await adapter.rename_thread("800", "My chosen name")
++    thread.edit.assert_awaited_once()
++
++
++@pytest.mark.asyncio
++async def test_seed_fallback_uses_canonical_name():
++    adapter = DiscordAdapter(PlatformConfig(enabled=True, extra={"auto_thread_media_ids": True}))
++    created = SimpleNamespace(name="instagram_AbC_123")
++    seed = SimpleNamespace(create_thread=AsyncMock(return_value=created))
++    message = SimpleNamespace(
++        content="https://instagram.com/reel/AbC_123/?tracking=yes",
++        author=SimpleNamespace(display_name="Alice"),
++        create_thread=AsyncMock(side_effect=RuntimeError("primary refused")),
++        channel=SimpleNamespace(send=AsyncMock(return_value=seed)),
++    )
++    assert await adapter._auto_create_thread(message) is created
++    assert seed.create_thread.await_args.kwargs["name"] == "instagram_AbC_123"
++
++
++@pytest.mark.asyncio
++async def test_string_false_does_not_enable_media_names():
++    adapter = DiscordAdapter(PlatformConfig(enabled=True, extra={"auto_thread_media_ids": "false"}))
++    message = SimpleNamespace(content="https://instagram.com/reel/AbC_123/", author=SimpleNamespace(display_name="Alice"))
++    message.create_thread = AsyncMock(side_effect=lambda *, name, **kw: SimpleNamespace(name=name))
++    assert (await adapter._auto_create_thread(message)).name == message.content
++
++
++@pytest.mark.asyncio
++async def test_non_instagram_name_preserves_existing_behavior():
++    adapter = DiscordAdapter(PlatformConfig(enabled=True, extra={"auto_thread_media_ids": True}))
++    message = SimpleNamespace(content="A normal question", author=SimpleNamespace(display_name="Alice"))
++    message.create_thread = AsyncMock(side_effect=lambda *, name, **kw: SimpleNamespace(name=name))
++    assert (await adapter._auto_create_thread(message)).name == message.content
+diff --git a/website/docs/user-guide/configuration.md b/website/docs/user-guide/configuration.md
+index 808b59c202..4803f9784a 100644
+--- a/website/docs/user-guide/configuration.md
++++ b/website/docs/user-guide/configuration.md
+@@ -2956,12 +2956,15 @@ discord:
+   free_response_channels: ""     # Comma-separated channel IDs where bot responds without @mention
+   auto_thread: true              # Auto-create threads on @mention in channels
+   free_response_auto_thread: false  # Free-response channels also auto-thread (default: reply inline)
++  extra:
++    auto_thread_media_ids: false  # Name a thread instagram_<shortcode> for a single Instagram media URL
+ ```
+ 
+ - `require_mention` — when `true` (default), the bot only responds in server channels when mentioned with `@BotName`. DMs always work without mention.
+ - `free_response_channels` — comma-separated list of channel IDs where the bot responds to every message without requiring a mention.
+ - `auto_thread` — when `true` (default), mentions in channels automatically create a thread for the conversation, keeping channels clean (similar to Slack threading).
+ - `free_response_auto_thread` — when `true`, channels in `free_response_channels` also auto-create a thread per top-level message. Default `false`: free-response channels reply inline. Requires `auto_thread: true`.
++- `extra.auto_thread_media_ids` — opt in to naming an auto-created thread `instagram_<shortcode>` when the submission contains exactly one distinct valid Instagram post/reel/TV URL. URL query and fragment are ignored; the shortcode's case is preserved. Invalid URLs, batches with multiple IDs, and all other messages keep the normal initial title. URLs are parsed locally and never fetched. This option is off by default; the supported native path is `platforms.discord.extra.auto_thread_media_ids: true`.
+ 
+ ## Security
+ 

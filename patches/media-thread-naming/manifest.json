@@ -1,0 +1,9 @@
+{
+  "upstream_repository": "https://github.com/NousResearch/hermes-agent",
+  "upstream_base_commit": "9fb07208be297313c8e34e5f00c7187c1cb219c4",
+  "local_patch_commit": "c765e96f5ace581c7687d0ea9cc1b4a32f42f246",
+  "upstream_release": false,
+  "patch_sha256": "7bfc946b920f460dfbd5cd3ae4367265f226b76ca8b8da10fdc631e57b53e54f",
+  "deployment_reported_targeted_tests": 64,
+  "repository_ci_scope": "manifest integrity and patch parsing only; no Hermes runtime suite"
+}

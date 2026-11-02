@@ -1,0 +1,9 @@
+# INERT excerpt, not a complete config or an installer.
+# Apply actual settings with supported Hermes setup/config commands.
+# Owner/channel allowlists and secret storage must be configured privately first.
+platforms:
+  discord:
+    enabled: false
+    extra:
+      # Requires compatible upstream support or the reviewed optional native patch.
+      auto_thread_media_ids: false

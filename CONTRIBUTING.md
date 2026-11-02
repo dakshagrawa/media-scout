@@ -28,6 +28,22 @@ Every skill package must have:
   facts from your adaptation, and do not reproduce private data, credentials,
   or a creator's entire catalog in a skill.
 
+## Workflow templates and publication
+
+Keep skills in their existing top-level package directories. Put multi-profile
+topologies, inert examples and diagrams under `workflows/<name>/`; optional
+version-specific upstream patches belong under `patches/<name>/` with exact base,
+integrity metadata and upstream license. A repository rename does not authorize
+moving installed packages or editing live profiles.
+
+Write portable examples from an explicit allowlist, not a copy of a private
+profile. Exclude media, transcripts, real receipts/records, auth/config dumps,
+logs, memory, real channel/task IDs and machine-local paths. Preserve original
+authorship. Local deployment test results must be labelled as such, not as CI
+coverage or a guarantee for a new install. Keep forwarding/deletion inactive in
+public defaults until explicit local consent and qualification. Test safety
+contracts and links without live credentials or destructive CI actions.
+
 ## Local checks
 
 From the repository root:

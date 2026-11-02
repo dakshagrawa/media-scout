@@ -10,3 +10,25 @@ env/
 !.env.example
 .DS_Store
 Thumbs.db
+
+# Private runtime state is not a distributable workflow package.
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.jsonl
+*.log
+auth.json
+.env*
+!.env.example
+**/media-library/
+**/sessions/
+**/memories/
+**/runtime/
+**/cache/
+*.mp4
+*.mov
+*.ogg
+*.wav
+*.srt
+*.vtt
