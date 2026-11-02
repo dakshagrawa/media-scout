@@ -153,3 +153,23 @@ def test_diagram_is_self_contained_and_no_script():
 @pytest.mark.parametrize("relative", ["media-evidence-library/SKILL.md", "workflows/media-scout/README.md", "workflows/media-scout/workflow.html", "patches/media-thread-naming/README.md", "MIGRATION.md"])
 def test_public_deliverables_exist(relative):
     assert (ROOT / relative).is_file()
+
+
+def test_ci_uses_two_linux_jobs_and_manual_cross_platform_matrix():
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    parsed = yaml.load(workflow, Loader=yaml.BaseLoader)
+    assert "workflow_dispatch" in parsed["on"]
+    assert parsed["permissions"] == {"contents": "read"}
+    assert list(parsed["jobs"]) == ["tests"]
+    job = parsed["jobs"]["tests"]
+    assert job["name"] == "Python ${{ matrix.python-version }} on ${{ matrix.os }}"
+    assert job["strategy"]["matrix"]["python-version"] == ["3.10", "3.13"]
+    expression = job["strategy"]["matrix"]["os"]
+    assert "github.event_name == 'workflow_dispatch'" in expression
+    manual_matrix = re.search(r"&& '([^']+)'", expression)
+    required_matrix = re.search(r"\|\| '([^']+)'", expression)
+    assert manual_matrix and required_matrix
+    assert json.loads(manual_matrix[1]) == ["ubuntu-latest", "macos-latest", "windows-latest"]
+    assert json.loads(required_matrix[1]) == ["ubuntu-latest"]
+    assert 'elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]' in workflow
+    assert "git diff-tree --check --root -r HEAD" in workflow

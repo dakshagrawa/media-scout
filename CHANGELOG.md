@@ -4,6 +4,10 @@ All notable changes to the skill packages in this repository are recorded here.
 
 ## Unreleased
 
+- Require only the Python 3.10 and 3.13 Ubuntu jobs for normal changes. Preserve
+  macOS/Windows coverage through manual workflow dispatch, with unchanged pinned
+  actions, read-only workflow permissions and the full contract test suite.
+
 - Rename the same public repository from `agent-skills` to `hermes-workflows`,
   preserving existing skill paths, Git history and contributor attribution.
 - Add portable `media-evidence-library` 0.1.0, Media Scout workflow templates,

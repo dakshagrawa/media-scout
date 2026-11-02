@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON(github.event_name == 'workflow_dispatch' && '["ubuntu-latest","macos-latest","windows-latest"]' || '["ubuntu-latest"]') }}
         python-version: ['3.10', '3.13']
 
     steps:
@@ -47,6 +48,8 @@ jobs:
         run: |
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             git diff --check "$BASE_SHA" HEAD
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            git diff-tree --check --root -r HEAD
           elif [[ "$BEFORE_SHA" =~ ^0+$ ]]; then
             ROOT_SHA="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
             git diff-tree --check --root -r "$ROOT_SHA"

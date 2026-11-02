@@ -93,7 +93,7 @@ Keep these setup rules:
 
 ## Check compatibility and limitations
 
-The reusable media skill is currently Linux-scoped because that is the reviewed deployment platform. Repository contract tests also run on macOS and Windows; that does not establish a working media runtime on those systems.
+The reusable media skill is currently Linux-scoped because that is the reviewed deployment platform. Required repository checks run on Ubuntu with Python 3.10 and 3.13. macOS and Windows contract checks are available on demand; passing them does not establish a working media runtime on those systems.
 
 The [acceptance document](workflows/media-scout/acceptance.md) separates actual source-deployment tests, synthetic integration fixtures and untested paths. Known limits include simultaneous duplicate submissions, quota/restart stress, complete real-world photo/carousel acquisition and a complete proposed-skill installation cycle. Use one item per top-level message rather than batching different reels into one thread.
 
@@ -112,7 +112,7 @@ workflows/media-scout/          # Setup, templates, diagram and acceptance
 patches/media-thread-naming/    # Native patch, base, hash and upstream license
 tests/skills/                  # Offline package and safety-contract tests
 scripts/run_tests.sh            # Shared test entry point
-.github/workflows/ci.yml        # Linux, macOS and Windows checks
+.github/workflows/ci.yml        # Required Ubuntu checks; other OSes on demand
 ```
 
 ## Run the repository checks
@@ -138,6 +138,8 @@ git diff --check
 ```
 
 The suite checks skill metadata, safety contracts, inactive JSON/YAML defaults, privacy patterns, relative links, patch integrity and syntax, and self-contained HTML. It does not run Discord, provider APIs, media extraction, actual deletion or Hermes's native gateway tests.
+
+Pull requests and pushes to `main` run two Ubuntu jobs: Python 3.10 and 3.13. Both are required, and branch protection still requires an up-to-date branch. For the full six-job cross-platform matrix, open **Actions → test → Run workflow** and choose a branch. That manual run adds macOS and Windows without putting their runner queues on every pull request's critical path.
 
 ## Contribute and version changes
 
