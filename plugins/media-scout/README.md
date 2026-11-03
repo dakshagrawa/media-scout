@@ -1,12 +1,12 @@
 # Media Scout — native Hermes plugin
 
-Turn an authorized Discord media submission into a durable source receipt, protected extraction record and source-bound native reviewer task. The plugin bundles `media-scout:workflow` for audiovisual evidence and review discipline.
+Turn an authorized Discord social-media submission into a durable source receipt, protected extraction record and source-bound native reviewer task. The plugin bundles `media-scout:workflow` for audiovisual evidence and review discipline.
 
 **Early release.** This is a native bookkeeping extension, not a downloader, STT engine or replacement agent framework. It does not install media tools, create a Discord bot, configure your credentials or migrate an existing Scout. Review the qualification and limitations below before enabling it. Catalog submission is not official acceptance or a code audit.
 
 ## What runs as code
 
-- Capture one supported Instagram post/reel from the actual authorized native `post_gateway_admission` event, after gateway admission. Internal wakes, control traffic and rejected senders do not become new owner submissions.
+- Capture one supported social-media post/video from the actual authorized native `post_gateway_admission` event, after gateway admission. Internal wakes, control traffic and rejected senders do not become new owner submissions.
 - Preserve original URL, exact owner, parent/guild/thread/message identity and case-sensitive canonical media identity. A missing record selects creation, not a false blocker.
 - Persist receipts and summaries in profile-scoped native plugin storage; claim extraction transactionally so cooperating callers cannot start the same extraction concurrently.
 - Save bounded source-attributed evidence with explicit coverage, then create/reuse a native Kanban review task: blocked creation → source subscription → verification → persisted links → release.
@@ -41,9 +41,15 @@ hermes plugins doctor media-scout --ci
 
 Use [the companion role example](examples/scout-SOUL.md) to direct the intake profile to load `skill_view(name="media-scout:workflow")` for supported submissions. Plugin skills are read-only and namespaced, not copied over your personal skills. Enabling a plugin does not grant it broad permissions over unrelated profiles.
 
+## Platform-specific thread names
+
+Enable `rename_threads` only after granting the declared native `gateway.platform_actions` capability through Hermes's plugin consent UI/CLI. Both gates are required. Names follow `youtube_<video_id>`, `threads_<post_id>`, `tiktok_<post_id>`, `snapchat_<spotlight_id>` and the corresponding source prefix; opaque shares use `*_share_*`. IDs remain case-preserving and titles are bounded/sanitized.
+
+Naming is awaited on the gateway's event loop through the SDK, not a new daemon or core patch. A denial/timeout is recorded without stopping capture or review. `thread_names` in the item readback reports requested/acknowledged/failed SDK state; an acknowledgement is not an independent live title readback. Keep one item per thread: a second distinct source must start a new top-level message.
+
 ## Use
 
-Send **one supported Instagram source per top-level message** in the configured intake channel. The native adapter owns thread creation. Keep clarifications in that thread. The original parent starter need not appear inside thread history: the trusted admission receipt supplies provenance before model processing.
+Send **one supported social-media source per top-level message** in the configured intake channel. The native adapter owns thread creation. Keep clarifications in that thread. The original parent starter need not appear inside thread history: the trusted admission receipt supplies provenance before model processing.
 
 The intake agent loads the bundled workflow and uses `media_scout` actions. Consult its current tool schema for exact argument fields:
 
@@ -75,7 +81,7 @@ Disabling/removing the plugin does not cancel already released native tasks. Sto
 ## Security and effect disclosure
 
 - **Credentials:** no plugin-specific API keys, no reads of another client's OAuth, browser session or credential store. Discord/model/extraction credentials remain with native Hermes or admitted tools.
-- **Network:** no HTTP client, telemetry, LLM call or network activity in registration/capture. Native media/reviewer tools may contact sources and use the operator's configured quota.
+- **Network:** no direct HTTP client, telemetry, LLM call or media/redirect fetch in registration/capture. Opt-in naming performs a bounded write through the native platform-action facade. Native media/reviewer tools may contact sources and use the operator's configured quota.
 - **Native commands:** review operations dispatch fixed, validated, safely quoted Hermes Kanban CLI commands through `ctx.dispatch_tool("terminal", ...)`; existing host approvals remain in force. These commands write native tasks/subscriptions in the active profile's configured board.
 - **Files:** reads/writes are plugin-owned state/evidence plus packaged instructions, not arbitrary caller paths. Detailed evidence can contain private material; protect the profile and backups.
 - **Processes:** no custom background service, direct subprocess executor, self-updater or replacement Discord client. Native Kanban remains responsible for scheduling and notification/wake.
@@ -84,11 +90,11 @@ Disabling/removing the plugin does not cancel already released native tasks. Sto
 
 ## Compatibility and qualification
 
-The v0.1.0 native runtime is Linux-scoped and requires Hermes >=0.22.6. It targets documented Hermes native plugin APIs: `post_gateway_admission`, `ctx.register_tool`, `ctx.register_skill`, `ctx.get_config`, `ctx.dispatch_tool`, `plugin_data_dir` and `plugin_db`. See [acceptance](ACCEPTANCE.md) for the exact tested release and boundary distinctions.
+The v0.2.0 native runtime is Linux-scoped and requires Hermes >=0.22.6. It targets documented Hermes native plugin APIs: `post_gateway_admission`, `ctx.register_tool`, `ctx.register_skill`, `ctx.get_config`, `ctx.dispatch_tool`, `plugin_data_dir` and `plugin_db`. See [acceptance](ACCEPTANCE.md) for the exact tested release and boundary distinctions.
 
-V1 supports one configured owner/profile and a single distinct supported Instagram item per submission. It does not identify semantic reposts, batch different sources into one thread, replace extraction engines, implement all-history discovery or promise cross-system exactly-once execution. A native idempotency key plus persisted claim/recovery protects retries; SQLite and the queue are not one transaction. Source access, provider quota, native delivery and model behavior can still fail.
+Version 0.2 supports one configured owner/profile and a single distinct supported social-media item per submission. See the [platform/form matrix](skills/workflow/references/sources.md): Instagram, YouTube, Threads, TikTok, public Snapchat, X/Twitter, Reddit, Facebook, Vimeo and Bluesky. Opaque shares remain explicitly provisional, not automatically canonicalized or cross-share deduplicated. It does not identify semantic reposts, batch different sources into one thread, replace extraction engines, implement all-history discovery or promise cross-system exactly-once execution. A native idempotency key plus persisted claim/recovery protects retries; SQLite and the queue are not one transaction. Source access, provider quota, native delivery and model behavior can still fail.
 
-The archived Instagram naming patch elsewhere in this repository is **not applied or required by this plugin**. No runtime core overrides ship here. Future title integration must use public platform actions with explicit capability consent.
+The archived Instagram naming patch elsewhere in this repository is **not applied or required by this plugin**. No runtime core overrides ship here. Platform-specific titles now use public platform actions with explicit capability consent; no raw adapter access or core override is used.
 
 ## Development
 

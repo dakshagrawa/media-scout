@@ -4,6 +4,18 @@ All notable changes to the skill packages in this repository are recorded here.
 
 ## Unreleased
 
+### Native Media Scout 0.2.0
+
+- Extend the same evidence/review workflow to YouTube, Threads, TikTok,
+  public Snapchat, X/Twitter, Reddit, Facebook, Vimeo and Bluesky alongside
+  Instagram, with strict content-URL allowlists and platform-namespaced identity.
+- Preserve legacy Instagram hashes/receipts. Keep opaque share links provisional
+  and distinguish source URL recognition from verified live acquisition.
+- Add optional platform-specific thread titles through the consent-gated native
+  platform-action facade, without core patches or wider bot permissions.
+- Support actual text-only evidence without falsely requiring video/audio.
+  Naming failure does not block intake or review; one item stays bound per thread.
+
 ### Native Media Scout 0.1.0
 
 - Add a Linux-scoped native plugin and bundled `media-scout:workflow` skill,

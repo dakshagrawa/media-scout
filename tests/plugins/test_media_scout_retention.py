@@ -35,6 +35,7 @@ def test_only_registered_expired_owned_files_are_removed(monkeypatch, tmp_path):
     assert result["deleted"] == ["cache/old.bin"]
     assert (cache / "unrelated.bin").read_bytes() == b"preserve unknown"
     assert mod.get_item(db, media)["summary"] == "Retained summary"
+    db.close()
 
 
 def test_drift_pins_active_and_symlinks_are_preserved(monkeypatch, tmp_path):
@@ -60,3 +61,4 @@ def test_drift_pins_active_and_symlinks_are_preserved(monkeypatch, tmp_path):
     else:
         raise AssertionError("must reject symlink registration")
     assert outside.read_bytes() == b"never touch"
+    db.close()

@@ -6,5 +6,6 @@
   "review_policy_reference": "",
   "review_profile": "default",
   "review_board": "media-review",
+  "rename_threads": false,
   "allow_cleanup": false
 }

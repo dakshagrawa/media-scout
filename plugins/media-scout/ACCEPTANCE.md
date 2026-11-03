@@ -9,7 +9,9 @@ This file defines the release gates. The GitHub release notes report the actual 
 - Admission captures only the configured actual owner/scope. Unknown senders, missing source fields, malformed/multiple sources and pasted identity claims do not manufacture receipts.
 - Missing records are created; replay preserves original provenance, summary and state instead of resetting them.
 - Two cooperating callers cannot acquire the same extraction claim. A reload retains claim/evidence/task state. An elapsed timer does not imply that a writer stopped.
-- Save validates the current claim, bounded evidence and honest structured coverage. Summary-only input cannot become a complete audiovisual packet.
+- Save validates the current claim, bounded evidence and honest structured coverage. Summary-only input cannot become a complete audiovisual packet. Text-only completeness requires bounded nonempty captured text segments with a matching count and explicit absence of uninspected media.
+- Each declared platform follows the same capture/evidence/review path. Provisional shares do not imply cross-link deduplication. An existing 0.1.0 catalog retains original Instagram IDs, claims and receipts.
+- Optional naming requires the configuration flag plus native capability consent, exact owner/source/receipt binding and a safe bounded title. Failure is nonfatal; another item cannot retarget an existing thread.
 - Review is disabled without operator consent. Local-only/stop/defer/no-review overrides win. Source text never changes the owner, profile, task authority or approval state.
 - Native bridge failures before/after creation, subscription, readback and release remain recoverable using stable identity. Repeated dispatch does not create a second task or redirect an existing task to a different thread.
 - Cleanup defaults to planning only. Apply requires explicit enablement and the exact unchanged plan. Registered expired artifacts alone are eligible; summaries, unknown/symlink/active/pinned/review-protected content and changed files survive.
@@ -25,6 +27,7 @@ Use an isolated, immutable supported Hermes release and disposable `HERMES_HOME`
 4. Use a separately isolated native Kanban board to exercise real blocked task creation, source subscription, exact readback and release. No live dispatcher should observe that board. Verify one stable task across repeated attempts and immutable return routing.
 5. Exercise a real native terminal bridge denial/malformed-result path without concealing the failure or bypassing approvals. Verify no work is released before source binding is known.
 6. Qualify cleanup against disposable owned files and preservation controls; inspect exact before/after bytes and the unchanged durable summary.
+7. Exercise each declared source through the async SDK hook and tool pipeline. Verify public-facade naming stays on the caller event loop with an explicitly synthetic adapter; do not call an SDK acknowledgement a remote readback.
 
 ## Deployment-specific gates
 

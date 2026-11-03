@@ -1,4 +1,4 @@
-"""Small, profile-local bookkeeping for Instagram media review workflows."""
+"""Small, profile-local bookkeeping for social-media review workflows."""
 from __future__ import annotations
 
 import hashlib
@@ -9,6 +9,8 @@ import sqlite3
 import time
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
+
+from .sources import parse_source_url, extract_one_source
 
 NAME = "media-scout"
 MAX_TEXT = 16_000
@@ -37,8 +39,8 @@ def parse_instagram_url(value: str):
 
 
 def canonical_identity(value: str):
-    parsed = parse_instagram_url(value)
-    return parsed[0] if parsed else None
+    parsed = parse_source_url(value)
+    return parsed.identity_key if parsed else None
 
 
 def extract_one_url(text: str):
@@ -77,6 +79,7 @@ def initialize(db: sqlite3.Connection):
       thread_id TEXT NOT NULL, created_at INTEGER NOT NULL,
       session_key TEXT NOT NULL DEFAULT '', source_text TEXT NOT NULL DEFAULT '', chat_type TEXT NOT NULL DEFAULT 'group'
     );
+    CREATE TABLE IF NOT EXISTS thread_titles (thread_id TEXT PRIMARY KEY, media_id TEXT NOT NULL, title TEXT NOT NULL, state TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '');
     CREATE TABLE IF NOT EXISTS catalog_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS reviews (media_id TEXT NOT NULL, packet_version INTEGER NOT NULL,
       task_id TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
@@ -96,10 +99,10 @@ def _identity_shortcode(shortcode):
 
 
 def capture_receipt(db, message_id, source, url, source_text=""):
-    parsed = parse_instagram_url(url)
+    parsed = parse_source_url(url)
     if not parsed or not isinstance(message_id, str) or not message_id or len(message_id) > 256:
         return None
-    shortcode, source_url = parsed
+    shortcode, source_url = parsed.identity_key, parsed.original_url
     media_id = _identity_shortcode(shortcode)
     now = int(time.time())
     db.execute("BEGIN IMMEDIATE")
@@ -113,6 +116,9 @@ def capture_receipt(db, message_id, source, url, source_text=""):
         if existing:
             db.commit()
             return {"receipt_id": existing[0], "media_id": existing[1]}
+        if source.get("thread_id") and db.execute("SELECT 1 FROM receipts WHERE thread_id=? AND media_id<>?", (source["thread_id"], media_id)).fetchone():
+            db.rollback()
+            return None  # one isolated item per thread; never retarget a previous item's thread
         db.execute("INSERT OR IGNORE INTO media(media_id,shortcode,created_at) VALUES(?,?,?)", (media_id, shortcode, now))
         receipt_id = secrets.token_hex(16)
         db.execute("""INSERT INTO receipts VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
@@ -131,7 +137,13 @@ def get_item(db, media_id) -> dict | None:
     if not row:
         return None
     names = ("media_id", "shortcode", "summary", "evidence_hash", "evidence_path", "coverage", "claim_token", "claim_owner", "claim_state", "pinned", "review_task_id", "packet_version")
-    return dict(zip(names, row))
+    item: dict = dict(zip(names, row))
+    original = db.execute("SELECT source_url FROM receipts WHERE media_id=? ORDER BY created_at,rowid LIMIT 1", (media_id,)).fetchone()
+    parsed = parse_source_url(original[0]) if original else None
+    if parsed:
+        item.update(source_platform=parsed.platform, source_post_id=parsed.post_id, canonical_url=parsed.canonical_url, identity_quality=parsed.identity_quality, suggested_thread_title=parsed.title)
+    item["thread_names"] = [dict(zip(("thread_id", "title", "state", "detail"), r)) for r in db.execute("SELECT thread_id,title,state,detail FROM thread_titles WHERE media_id=?", (media_id,))]
+    return item
 
 
 def claim(db, media_id, owner):
@@ -176,8 +188,21 @@ def save_evidence(db, media_id, token, summary, evidence, coverage):
         return {"error": "substantive actual observations or source-access explanation required"}
     if coverage in {"partial", "blocked"} and not str(evidence.get("limitations", "")).strip():
         return {"error": "partial/blocked evidence requires explicit limitations"}
-    if coverage == "complete" and (evidence.get("visual_mode") != "full" or not (evidence["visual"] or evidence["pictures"]) or (not evidence["audio"] and not evidence.get("audio_unavailable_reason"))):
-        return {"error": "complete requires full visual coverage and audio or an explicit no-audio basis"}
+    kind = evidence.get("kind", "video")
+    if kind not in {"video", "image", "carousel", "text", "mixed"}:
+        return {"error": "unsupported evidence kind"}
+    if coverage == "complete":
+        if kind == "text":
+            segments = evidence.get("text_content")
+            if (not isinstance(segments, list) or not 1 <= len(segments) <= 100
+                    or not all(isinstance(part, str) and part.strip() and len(part) <= MAX_TEXT for part in segments)
+                    or type(evidence.get("text_segments")) is not int
+                    or evidence["text_segments"] != len(segments)
+                    or evidence.get("has_media") is not False
+                    or any(evidence[k] for k in ("audio", "visual", "pictures"))):
+                return {"error": "complete text requires bounded captured text_content segments, a matching text_segments count, and explicit absence of uninspected media"}
+        elif evidence.get("visual_mode") != "full" or not (evidence["visual"] or evidence["pictures"]) or (not evidence["audio"] and not evidence.get("audio_unavailable_reason")):
+            return {"error": "complete requires full visual coverage and audio or an explicit no-audio basis"}
     try:
         detail = json.dumps({**evidence, "coverage": coverage}, ensure_ascii=False, sort_keys=True, allow_nan=False)
     except (ValueError, TypeError):
@@ -257,17 +282,30 @@ def _capture(ctx, **kwargs):
         text = kwargs.get("text")
         if not isinstance(text, str):
             return None
-        found = extract_one_url(text)
+        found = extract_one_source(text)
         if not found:
             return None
         db = _db()
-        capture_receipt(db, message_id, {**source, "session_key": session_key}, found[1], text)
+        captured = capture_receipt(db, message_id, {**source, "session_key": session_key}, found.original_url, text)
+        if captured and captured["media_id"] == _identity_shortcode(found.identity_key):
+            return {"media_id": captured["media_id"], "source": source, "title": found.title}
     except Exception:
         # No content is logged. A failed capture cannot blackhole native ingress.
         return None
     finally:
         if db is not None:
             db.close()
+    return None
+
+
+async def _admission(ctx, **kwargs):
+    captured = _capture(ctx, **kwargs)
+    if captured:
+        from .naming import rename_captured_thread
+        try:
+            await rename_captured_thread(ctx, captured["source"], captured["title"], captured["media_id"], _db)
+        except Exception:
+            pass  # naming is optional; never discard an accepted receipt or block its review
     return None
 
 
@@ -457,15 +495,17 @@ def _command(ctx, raw_args, source=None, **kwargs):
 
 def register(ctx):
     ctx.register_skill("workflow", Path(__file__).parent / "skills/workflow/SKILL.md")
-    ctx.register_hook("post_gateway_admission", lambda **kw: _capture(ctx, **kw))
+    async def on_admitted(**kwargs):
+        return await _admission(ctx, **kwargs)
+    ctx.register_hook("post_gateway_admission", on_admitted)
     ctx.register_command("media-scout", lambda raw_args, source=None, **kw: _command(ctx, raw_args, source, **kw), description="Recover an interrupted extraction only after stopping its old writer.", args_hint="release <media_id> --writer-stopped")
-    schema = {"name": "media_scout", "description": "Capture-backed media evidence, exclusive claims, native review handoff and bounded owned retention. Load skill_view('media-scout:workflow') for supported submissions.", "parameters": {
+    schema = {"name": "media_scout", "description": "Capture-backed media evidence, exclusive claims, native review handoff and bounded owned retention. Load skill_view('media-scout:workflow') for supported social-media submissions.", "parameters": {
         "type": "object", "additionalProperties": False,
         "properties": {
             "action": {"type": "string", "enum": ["status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin"]},
             "media_id": {"type": "string", "maxLength": 64}, "claim_token": {"type": "string", "maxLength": 128},
             "summary": {"type": "string", "maxLength": 4000}, "coverage": {"type": "string", "enum": ["complete", "partial", "blocked"]},
-            "evidence": {"type": "object", "description": "Actual observations with audio/visual/pictures integer counts, times array, observations text, visual_mode full/sampled/none, limitations, and audio_unavailable_reason when applicable."},
+            "evidence": {"type": "object", "description": "Actual observations: kind video/image/carousel/text/mixed; audio/visual/pictures counts, times and observations. Text-only completeness requires nonempty text_content segments, matching text_segments and has_media=false. Record visual_mode, limitations and audio_unavailable_reason where applicable."},
             "plan_id": {"type": "string", "maxLength": 64}, "path": {"type": "string", "maxLength": 300}, "pinned": {"type": "boolean"}
         }, "required": ["action"]}}
     ctx.register_tool(name="media_scout", toolset="media_scout", schema=schema, handler=lambda args, **kw: _handler(ctx, args, **kw))

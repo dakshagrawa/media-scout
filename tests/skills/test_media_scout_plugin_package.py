@@ -22,7 +22,7 @@ def test_plugin_bundled_skill_metadata_and_local_references():
     match = re.fullmatch(r"---\n(.*?)\n---\n(.+)", text, re.S)
     assert match
     meta = yaml.safe_load(match[1])
-    assert meta["name"] == "workflow" and meta["version"] == "0.1.0"
+    assert meta["name"] == "workflow" and meta["version"] == "0.2.0"
     assert meta["author"].startswith("Daksh Agrawal")
     assert len(meta["description"]) <= 60 and meta["description"].endswith(".")
     assert meta["metadata"]["hermes"]["related_skills"] == []

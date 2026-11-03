@@ -1,10 +1,12 @@
 name: media-scout
-version: 0.1.0
-description: "Profile-local media receipt and review bookkeeping; native tools perform extraction and review."
+version: 0.2.0
+description: "Multi-platform social evidence intake, native review and opt-in thread naming."
 author: "Daksh Agrawal (dakshagrawa)"
 license: MIT
 requires_hermes: ">=0.22.6"
 platforms: [linux]
+capabilities:
+  - gateway.platform_actions
 provides_tools:
   - media_scout
 provides_hooks:
@@ -32,6 +34,10 @@ config_schema:
   review_board:
     type: string
     default: media-review
+  rename_threads:
+    type: boolean
+    default: false
+    description: "Name captured threads through the separately consented native platform-action facade."
   allow_cleanup:
     type: boolean
     default: false

@@ -1,7 +1,7 @@
 ---
 name: workflow
 description: Turn shared media into source-linked, reviewed knowledge.
-version: 0.1.0
+version: 0.2.0
 author: Daksh Agrawal (dakshagrawa), Hermes Agent
 license: MIT
 platforms: [linux]
@@ -17,9 +17,11 @@ Use the native `media_scout` tool for bookkeeping and existing admitted Hermes t
 
 ## When to Use
 
-- An authorized owner submits one supported Instagram source in the configured Discord intake scope.
+- An authorized owner submits one supported social-media source in the configured Discord intake scope.
 - Continue extraction, recall existing evidence, queue a review or inspect an existing item's status.
 - Do not use for arbitrary URLs, multiple different posts in one submission, unauthorized senders, account access or installing creator recommendations.
+
+See [supported sources and acquisition paths](references/sources.md) for exact platform forms, share-link identity limits and safe fallbacks. Enable and separately consent to native thread naming to get platform-specific titles; denied naming must not block intake, evidence or review.
 
 ## Prerequisites
 

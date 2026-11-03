@@ -52,6 +52,7 @@ def test_receipt_replay_is_idempotent_and_does_not_reset_claim(monkeypatch, tmp_
     assert mod.get_item(db, first["media_id"])["claim_token"] == claim["claim_token"]
     stored = db.execute("SELECT source_url FROM receipts WHERE message_id=?", ("m1",)).fetchone()[0]
     assert stored.endswith("utm_source=x")
+    db.close()
 
 
 def test_save_requires_claim_token_and_structured_coverage(monkeypatch, tmp_path):
@@ -67,6 +68,7 @@ def test_save_requires_claim_token_and_structured_coverage(monkeypatch, tmp_path
     assert result["saved"] is True
     row = mod.get_item(db, media)
     assert row["coverage"] == "partial" and row["evidence_hash"]
+    db.close()
 
 
 def test_tool_never_trusts_model_supplied_owner(monkeypatch, tmp_path):
