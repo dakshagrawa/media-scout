@@ -1,0 +1,10 @@
+{
+  "owner_id": "",
+  "guild_id": "",
+  "parent_channel_id": "",
+  "auto_review": false,
+  "review_policy_reference": "",
+  "review_profile": "default",
+  "review_board": "media-review",
+  "allow_cleanup": false
+}

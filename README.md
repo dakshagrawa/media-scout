@@ -1,6 +1,6 @@
 # Hermes Workflows
 
-Reusable skills and portable workflow templates for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Use them to review websites or turn shared media into source-backed knowledge and considered recommendations.
+Reusable skills, a native plugin and portable workflow templates for [Hermes Agent](https://github.com/NousResearch/hermes-agent). Use them to review websites or turn shared media into source-backed knowledge and considered recommendations.
 
 Formerly `dakshagrawa/agent-skills`. The repository name changed, but its Git history and existing skill paths remain intact. See the [migration guide](MIGRATION.md) for updating remotes and existing references.
 
@@ -12,10 +12,17 @@ Choose a reusable skill for one agent, or follow the Media Scout guide for a mul
 | --- | --- | --- |
 | `production-web-checklist` | Review website strategy, design, content, accessibility, search visibility, privacy, security, performance and release evidence | [Skill instructions](production-web-checklist/SKILL.md) |
 | `media-evidence-library` | Capture audiovisual evidence, reuse saved findings, preserve provenance and recall earlier media | [Skill instructions](media-evidence-library/SKILL.md) |
+| Native Media Scout plugin | Capture trusted sources, create records, claim extraction work, persist evidence and route native review tasks | [Install, safety and qualification](plugins/media-scout/README.md) |
 | Media Scout workflow | Configure native intake and reviewer profiles, source-thread delivery, learning notes and qualified retention | [Setup and operating guide](workflows/media-scout/README.md) |
 | Optional Instagram naming patch | Give compatible native Discord auto-threads a case-preserving `instagram_<shortcode>` name | [Patch scope and compatibility](patches/media-thread-naming/README.md) |
 
-Skills contain agent instructions. Workflows describe how native Hermes features work together. The optional patch changes upstream Hermes code only when you separately review and apply it.
+Skills contain agent instructions. The native plugin puts bookkeeping into code and bundles a namespaced workflow skill; it does not replace acquisition engines, the queue or model reasoning. Workflows describe how native Hermes features work together. The optional patch changes upstream Hermes code only when you separately review and apply it; the plugin does not apply or require that patch.
+
+## Install the native Media Scout extension
+
+The [native plugin](plugins/media-scout/README.md) packages durable receipt/record creation, exclusive extraction claims, source-bound native review handoff and opt-in bounded retention. Its bundled `media-scout:workflow` skill guides actual media understanding. Use an immutable release commit through Hermes's native installer; review the code and configure your own owner/channel/guild, reviewer and consent before enabling it.
+
+This early plugin release does not alter an existing Scout deployment, migrate private data or ship a bot token. Read its [acceptance and rollback contract](plugins/media-scout/ACCEPTANCE.md). GitHub publication and submission to the official catalog are separate from maintainer acceptance; this repository is not the official catalog.
 
 ## Review a website
 
@@ -61,11 +68,11 @@ Public templates start inactive. Cloning this repository does not authorize or a
 
 Item-specific `local-only`, stop, defer and reject instructions override standing review consent. Do not bulk-forward old records. Review consent does not authorize installations, purchases, code or configuration changes, publication, outreach or new services.
 
-The package creates no custom service, daemon or installer. Instructions do not form a filesystem sandbox or transactional lock. Follow native security admission and your own source restrictions. This repository is not the official Hermes skill catalog and does not override an official-source-only policy.
+No package creates a custom service, daemon or installer. The instruction-only workflow does not form a filesystem sandbox or transactional lock; the native plugin adds transactional claims for cooperating callers, not an OS sandbox or a cross-system exactly-once guarantee. Follow native security admission and your own source restrictions. This repository is not the official Hermes skill catalog and does not override an official-source-only policy.
 
 ## Locate stored evidence
 
-The Media Scout reference uses a private `media-library/` under the active profile home. These are runtime locations, not data included in this repository:
+The instruction-only Media Scout reference uses a private `media-library/` under the active profile home. The native plugin instead uses profile-scoped `plugin-data/media-scout/`, deliberately outside its replaceable install directory. It does not migrate the older tree. These are runtime locations, not data included in this repository:
 
 | Relative path | Contents | Retention target |
 | --- | --- | --- |
@@ -95,7 +102,7 @@ Keep these setup rules:
 
 The reusable media skill is currently Linux-scoped because that is the reviewed deployment platform. Required repository checks run on Ubuntu with Python 3.10 and 3.13. macOS and Windows contract checks are available on demand; passing them does not establish a working media runtime on those systems.
 
-The [acceptance document](workflows/media-scout/acceptance.md) separates actual source-deployment tests, synthetic integration fixtures and untested paths. Known limits include simultaneous duplicate submissions, quota/restart stress, complete real-world photo/carousel acquisition and a complete proposed-skill installation cycle. Use one item per top-level message rather than batching different reels into one thread.
+The [acceptance document](workflows/media-scout/acceptance.md) separates actual source-deployment tests, synthetic integration fixtures and untested paths. Known reference-workflow limits include simultaneous duplicate submissions, quota/restart stress, complete real-world photo/carousel acquisition and a complete proposed-skill installation cycle. Use one item per top-level message rather than batching different reels into one thread.
 
 Source access and direct video support depend on your tools and provider. Timestamped speech plus sampled visual inspection is not exhaustive frame-by-frame analysis. The optional naming patch is base-specific, not an upstream release; recheck compatibility after Hermes updates.
 
@@ -108,9 +115,11 @@ The repository keeps skill packages separate from deployment topology and option
 ```text
 production-web-checklist/       # Existing skill; installation path preserved
 media-evidence-library/         # Media skill and supporting references
+plugins/media-scout/            # Native extension, bundled skill and setup
 workflows/media-scout/          # Setup, templates, diagram and acceptance
 patches/media-thread-naming/    # Native patch, base, hash and upstream license
 tests/skills/                  # Offline package and safety-contract tests
+tests/plugins/                 # Offline plugin state, safety and queue tests
 scripts/run_tests.sh            # Shared test entry point
 .github/workflows/ci.yml        # Required Ubuntu checks; other OSes on demand
 ```
@@ -137,7 +146,7 @@ python -m venv .venv
 git diff --check
 ```
 
-The suite checks skill metadata, safety contracts, inactive JSON/YAML defaults, privacy patterns, relative links, patch integrity and syntax, and self-contained HTML. It does not run Discord, provider APIs, media extraction, actual deletion or Hermes's native gateway tests.
+The suite checks skill metadata, safety contracts, inactive JSON/YAML defaults, privacy patterns, relative links, patch integrity, self-contained HTML and native-plugin bookkeeping against disposable fixtures. It does not run real Discord, provider APIs or media extraction. The plugin's separate native SDK qualification is described in its acceptance guide; fixture cleanup is not production cleanup.
 
 Pull requests and pushes to `main` run two Ubuntu jobs: Python 3.10 and 3.13. Both are required, and branch protection still requires an up-to-date branch. For the full six-job cross-platform matrix, open **Actions → test → Run workflow** and choose a branch. That manual run adds macOS and Windows without putting their runner queues on every pull request's critical path.
 

@@ -44,6 +44,25 @@ coverage or a guarantee for a new install. Keep forwarding/deletion inactive in
 public defaults until explicit local consent and qualification. Test safety
 contracts and links without live credentials or destructive CI actions.
 
+## Native plugins
+
+Keep executable extensions under `plugins/<name>/`, separate from instruction-only
+skills and workflow templates. Use documented public Hermes plugin APIs only; no
+runtime overrides of core functions, private registries or UI markup. Store runtime
+data through the native profile-scoped plugin storage helpers, outside the install
+tree. Declare the exact tools/hooks/capabilities and truthful compatibility floor.
+
+Add behavioral tests under `tests/plugins/`, with isolated state, no credentials or
+external clients, and failure/replay/concurrency coverage. Run actual native Plugin
+Doctor and catalog validation in a disposable matching SDK environment. Distinguish
+synthetic SDK acceptance from real Discord/provider/media qualification. Never
+reuse private deployment fixtures as public examples or claim an untested OS.
+
+Publish only a reviewed immutable commit after both required Ubuntu checks pass.
+Component release tags and archive hashes must match that commit. An official
+catalog submission is a separate exact-SHA PR, not a claim of maintainer admission.
+Enabling a package in a live profile is separate from publishing it.
+
 ## Local checks
 
 From the repository root:

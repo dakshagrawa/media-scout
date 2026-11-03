@@ -4,6 +4,20 @@ All notable changes to the skill packages in this repository are recorded here.
 
 ## Unreleased
 
+### Native Media Scout 0.1.0
+
+- Add a Linux-scoped native plugin and bundled `media-scout:workflow` skill,
+  using documented Hermes >=0.22.6 admission, storage and tool APIs.
+- Move trusted receipt creation, durable extraction claims, bounded evidence
+  persistence and native review handoff into executable bookkeeping.
+- Preserve permanent summaries and source/task links; make owned artifact
+  retention separately opt-in with bounded, drift-checked plans.
+- Keep real media extraction and personalized reasoning in admitted native
+  tools and reviewer profiles. No extra service, second bot, core override,
+  silent dependency installation or live-profile migration is included.
+- Publish native SDK qualification separately from actual Discord/model/media
+  acceptance. Existing skills and instruction-only workflow paths are unchanged.
+
 - Fix false media-intake blockers in `media-evidence-library` 0.1.1: look up
   auto-thread starter messages in the actual parent channel; treat an exact
   missing catalog record as the creation path and continue in the same run.
