@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for improving these skill packages. Keep changes small, evidence-based,
+Thanks for improving Media Scout. Keep changes small, evidence-based,
 and independently reviewable.
 
 ## Before editing
@@ -33,8 +33,7 @@ Every skill package must have:
 Keep skills in their existing top-level package directories. Put multi-profile
 topologies, inert examples and diagrams under `workflows/<name>/`; optional
 version-specific upstream patches belong under `patches/<name>/` with exact base,
-integrity metadata and upstream license. A repository rename does not authorize
-moving installed packages or editing live profiles.
+integrity metadata and upstream license. A repository split does not authorize moving installed packages or editing live profiles. The existing `production-web-checklist` project remains in its source repository; do not add its files here.
 
 Write portable examples from an explicit allowlist, not a copy of a private
 profile. Exclude media, transcripts, real receipts/records, auth/config dumps,

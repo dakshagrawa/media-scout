@@ -1,9 +1,15 @@
 # Security policy
 
-This repository contains agent instructions and documentation, not a hosted
-service. A skill can still create risk by recommending unsafe commands,
-exposing secrets, encouraging data collection, or misstating a security
-boundary.
+This repository contains an executable native Hermes plugin, agent instructions
+and documentation, not a hosted service. The plugin runs with host-user authority;
+its logical claims and retention guards are not an operating-system sandbox.
+Code and skills can create risk through unsafe commands, data collection,
+secret exposure or overstated security boundaries. Review the plugin's
+capabilities and keep public defaults inactive until separately authorized.
+
+This policy applies to the standalone Media Scout repository
+`dakshagrawa/media-scout`. The historical source repository
+`dakshagrawa/hermes-workflows` remains separate.
 
 ## Reporting a concern
 

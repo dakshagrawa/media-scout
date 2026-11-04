@@ -1,8 +1,12 @@
 # Changelog
 
-All notable changes to the skill packages in this repository are recorded here.
+All notable changes to Media Scout packages in this repository are recorded here. Entries below the split boundary are historical source-repository changes, not files or functionality retained in this standalone repository.
 
 ## Unreleased
+
+- Split Media Scout into `dakshagrawa/media-scout`. Filtered history has different commit IDs; original authors/dates and required package tags are preserved. No live deployment or private data is migrated or auto-updated.
+
+## Historical source repository entries (before the split)
 
 ### Native Media Scout 0.2.0
 

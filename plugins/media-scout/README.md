@@ -20,7 +20,7 @@ Hermes's native tools still do acquisition/transcription/vision. The reviewer us
 Use the official [Hermes plugin installer](https://hermes-agent.nousresearch.com/docs/user-guide/features/plugins), review the immutable release source and install **disabled** first:
 
 ```bash
-hermes plugins install dakshagrawa/hermes-workflows/plugins/media-scout --ref FULL_40_CHARACTER_RELEASE_COMMIT --no-enable
+hermes plugins install dakshagrawa/media-scout/plugins/media-scout --ref FULL_40_CHARACTER_RELEASE_COMMIT --no-enable
 hermes plugins show media-scout
 ```
 
@@ -115,4 +115,4 @@ Doctor/validation execute plugin registration; review code first. Use only dispo
 
 ## License and source
 
-[MIT](LICENSE). Author: Daksh Agrawal (`dakshagrawa`), with Hermes Agent. Source: [hermes-workflows](https://github.com/dakshagrawa/hermes-workflows). Hermes itself is developed by Nous Research; this plugin is not a Nous product or endorsement.
+[MIT](LICENSE). Author: Daksh Agrawal (`dakshagrawa`), with Hermes Agent. Current source: [media-scout](https://github.com/dakshagrawa/media-scout). Historical source repository: [hermes-workflows](https://github.com/dakshagrawa/hermes-workflows). Hermes itself is developed by Nous Research; this plugin is not a Nous product or endorsement.
