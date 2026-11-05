@@ -1,34 +1,38 @@
 {
   "schema_version": 1,
   "algorithm": "sha256",
-  "setup_version": "1.0.0",
+  "setup_version": "1.0.1",
   "capture_date_utc": "20261105T012827Z",
   "repository_base": "92348604f1cbc45d01a98178d43b9bc57e156bf2",
   "scope": "sanitized setup allowlist, not private data or automatic installer",
   "files": {
+    "CHANGES-1.0.1.md": {
+      "sha256": "20c468d57291fa752963a82c3a15fe810bf33734bbc8650696bed651c72bd42e",
+      "bytes": 5997
+    },
     "FEATURES.md": {
       "sha256": "cc1a7190503a753ac28a210e9f7af7b9c3a7abcbda91bbe56f5587358644399f",
       "bytes": 5295
     },
     "PUBLICATION-REVIEW.json": {
-      "sha256": "85b9ac49aec50851932d647933be35589932d66ecd19ee42dd8ce0fd3a550ae3",
-      "bytes": 784
+      "sha256": "36d6a6da43eae45f3edbd0a7ed7246171f87241069ca205b7d34af1f2320f134",
+      "bytes": 2030
     },
     "README.md": {
-      "sha256": "9a8232e570a3ef17e8d9588c77cc35f00010b984d28a63bb5fa7f5ca3ef74cef",
-      "bytes": 4739
+      "sha256": "cc20fd4e2d0e9f7ef4208012596bcedea31fe74349f7968a53d1082a478b9bb4",
+      "bytes": 5176
     },
     "RESTORE.md": {
       "sha256": "f7b7c85f5d327eb1da0aaf117eaf9c6b05643cc91598176c638bef402c197408",
       "bytes": 6818
     },
     "SANITIZATION.md": {
-      "sha256": "18d835a03e09be57bab71247a90781ae8233bc7acf1902e898b80d52ff44efc9",
-      "bytes": 2918
+      "sha256": "5ca24a03f11630f214112df959e9cf97c74bb639c4c6ac9dd29967d2e7780188",
+      "bytes": 3446
     },
     "VERIFICATION.md": {
-      "sha256": "99441223b739d651a8bdeb09257bd541c7f6df3ce1ff58b1dd78a1b33c4abfb4",
-      "bytes": 2064
+      "sha256": "d08def881de544be6b0a651c789828a46e84d17f6d91748b07af3c0a81a2b61f",
+      "bytes": 3431
     },
     "config.example.yaml": {
       "sha256": "9ad63a030322fa032fb5a5aa738865aed27ea48f4e440f248f20284213429f8f",
@@ -63,8 +67,8 @@
       "bytes": 941
     },
     "profile/SOUL.md": {
-      "sha256": "beb1dcea1ef6d7821cf64ba37db1add1aafbb44a6133e493740e034752b41387",
-      "bytes": 22342
+      "sha256": "4a10d2392a612a40eb4e3f0ccc77d01cedb54e0e7cb9fbf469747a07ff7e2918",
+      "bytes": 25963
     },
     "profile/media-library/policy.json": {
       "sha256": "c1fdea28b5eafcd995572f7876080fd02edeab5bcc35e604f243b8bdbc14f413",
@@ -75,16 +79,16 @@
       "bytes": 1262
     },
     "profile/media-library/review-policy.md": {
-      "sha256": "6c01df463e39a1431a5b331ecce38db0901134d3acb5900f1bc4c3a510b96313",
-      "bytes": 2968
+      "sha256": "c70c152c83b764f81ae45ef95b7645e06d32702abedb998b606dbaf2e0cfadfd",
+      "bytes": 5138
     },
     "profile/media-library/templates/primary-review-contract.md": {
-      "sha256": "2a6fe786b14137c1e4a06dad8294f1940f9c50c82d9e87f0e89d0a354722a965",
-      "bytes": 11546
+      "sha256": "615352e42a6e22e78866b8a46c6d5d1620c8c01c7e2a8aeff081e2603952cb8a",
+      "bytes": 12379
     },
     "profile/media-library/templates/response-format.md": {
-      "sha256": "f1de6c34c8aa8fac2ccff150ba128eb9bbe79e25af9b4eb01b9794a6f99d8ec3",
-      "bytes": 5316
+      "sha256": "897f516240744313e2123f8471f5ccfd253be43dc975eea7f313e51efd84c004",
+      "bytes": 6330
     },
     "profile/skills/media/media-evidence-library/SKILL.md": {
       "sha256": "9e153632e4ee7290d7fbfc9e25de4f029dbb8b28ef79494e31ea567406bb25c6",
@@ -107,36 +111,55 @@
       "bytes": 3223
     },
     "profile/skills/media/media-to-github/SKILL.md": {
-      "sha256": "b56de9d5e7ad7d35a7011b94483797c65a41fd62db187923e2169bb6307067be",
-      "bytes": 9495
+      "sha256": "186b7d68d94c52f697e7972465574617ff1ebce64b65a9fbb6408be94f6578f9",
+      "bytes": 17948
     },
     "profile/skills/media/media-to-github/references/context-placement.md": {
       "sha256": "04eb2d0506af5c13f1635c298699319e9f61ebce5425ba82a968931f0ea73a1c",
       "bytes": 2398
     },
+    "profile/skills/media/media-to-github/references/implementation-deployment-handoff.md": {
+      "sha256": "a8fd3f9b8aa69f589e21602559514a40aa238cd5fa580097098ca88a96f9aac8",
+      "bytes": 5502
+    },
     "profile/skills/media/media-to-github/references/publication-checklist.md": {
-      "sha256": "e15fb88ca44fb731f8a802e0653db97c387c67ce4a5ed3e7478d75253ffa1da9",
-      "bytes": 3453
+      "sha256": "a332e21cddafcf95b81e7b3dea87443c4bbfa3e4103523b5fabf3fcca1eb16a3",
+      "bytes": 4784
     },
     "profile/skills/media/media-to-github/templates/issue.md": {
-      "sha256": "4a50d02816a8cc5fcc36814ff3a05ed0d40dc934560371ec5f7fea24a09e0e9d",
-      "bytes": 1714
+      "sha256": "e1bd1072344023e79f8a0cad194b02d74ba22869961370ed46ee00294141f3a7",
+      "bytes": 3718
     },
     "profile/skills/media/media-to-github/templates/pull-request.md": {
-      "sha256": "ca47d469cf6cd5049c45a08dce09b52ed349c206d783623dd768a85eb88907d4",
-      "bytes": 1852
+      "sha256": "4e7cf50e665adbf7b1e61cbabdb1e54cb19db30d9ce181ea5bbc075fb92dec6e",
+      "bytes": 3708
     },
     "recovery.safe-defaults.json": {
       "sha256": "3406ad8ebeacd8a409a4ed626f23485132203b111430e9ec8c7586da6fceb6e8",
       "bytes": 1263
     },
     "skills-inventory.json": {
-      "sha256": "5681edacf447ac245a1fb6e838b9bcb63a5d3533c2933cdab12e141c5c79e074",
-      "bytes": 3758
+      "sha256": "73e52a0b2b0e3825254a6bf5e85b03fa300fea88dee39443139b8c306a9cc3d2",
+      "bytes": 3855
     },
     "stt-command.reference.txt": {
       "sha256": "5c01c6e327cbbd1c8cf25a5ca0968fb86229e6ee2ff43af276c44ce2737e1bc7",
       "bytes": 686
     }
-  }
+  },
+  "baseline_setup_version": "1.0.0",
+  "baseline_setup_commit": "abf747ac3fbbd7494df30751466ea36dec215a98",
+  "refresh_scope": "selective instruction update; capture_date_utc and unrefreshed runtime inventories describe 1.0.0",
+  "refreshed_source_allowlist": [
+    "SOUL.md",
+    "media-library/review-policy.md",
+    "media-library/templates/primary-review-contract.md",
+    "media-library/templates/response-format.md",
+    "skills/media/media-to-github/SKILL.md",
+    "skills/media/media-to-github/references/context-placement.md",
+    "skills/media/media-to-github/references/publication-checklist.md",
+    "skills/media/media-to-github/references/implementation-deployment-handoff.md",
+    "skills/media/media-to-github/templates/issue.md",
+    "skills/media/media-to-github/templates/pull-request.md"
+  ]
 }

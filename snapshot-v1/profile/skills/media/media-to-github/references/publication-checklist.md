@@ -21,6 +21,13 @@ Use this before showing a proposed public payload. It is a drafting aid, not pub
 - Link an existing relevant issue/PR rather than opening a duplicate. Preserve unrelated content when updating a target.
 - Record actual tests/checks and pending checks distinctly. Do not publish internal scanner findings, private approval records or task references.
 
+## Implementation and deployment completeness
+- Read [implementation and deployment handoff](implementation-deployment-handoff.md) and fill the handoff in the applicable template before presenting a public payload. Include approved evidence needed to understand/implement/verify without private Discord/task context or watching the original media.
+- Record target/baseline, bounded implementation, dependencies/configuration/secret names only, permissions/data/migrations/compatibility, reproducible acceptance and release gates, rollout/activation, operational signals/ownership, rollback/data recovery, open decisions and deferred work.
+- Issues remain proposed requirements/plans. PRs must match their actual diff and actual test evidence; label remaining release work pending. Never infer deploy-ready from green CI alone.
+- Apply proportional detail: documentation/skill-only changes may mark runtime concerns Not applicable with a reason, but still state relevant package/admission/installation/activation checks. Mark Unknown with the exact needed check; no guessed commands, measurements or infrastructure.
+- Keep optional opportunities distinct from blockers; planning deployment, installation or rollback grants no permission to perform it. Material changes to an already shown proposal require fresh matching approval.
+
 ## PR-only completeness
 - Exact repo/base/head, branch, bounded changed-file list and full reviewable diff presented privately before approval.
 - Correct version allocation; authorship, license/provenance and contributor credit for reused work.

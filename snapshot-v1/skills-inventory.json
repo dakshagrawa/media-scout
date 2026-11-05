@@ -26,11 +26,12 @@
     },
     {
       "name": "media-to-github",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "path": "media/media-to-github",
-      "sha256": "81ffa1b8c54d770cbee299e7cb884fc3ba2028509df6b21beaeecbd80500de99",
+      "sha256": "186b7d68d94c52f697e7972465574617ff1ebce64b65a9fbb6408be94f6578f9",
       "author": "Daksh Agrawal (dakshagrawa), Hermes Agent",
-      "license": "MIT"
+      "license": "MIT",
+      "hash_scope": "sanitized bundled SKILL.md; original capture inventory otherwise retained"
     },
     {
       "name": "pdf",

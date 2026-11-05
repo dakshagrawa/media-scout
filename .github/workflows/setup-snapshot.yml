@@ -3,6 +3,8 @@ name: setup snapshot qualification
 on:
   push:
     branches: [version-one]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 # Commands are fixed; only the literal OS/Python matrices parameterize jobs.
@@ -12,7 +14,7 @@ permissions:
 
 jobs:
   full-suite:
-    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Setup full suite — Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -51,4 +53,4 @@ jobs:
       - run: python -m pip install -r requirements-dev.txt
       - name: Snapshot-only contracts (not native plugin runtime support)
         shell: bash
-        run: bash scripts/run_tests.sh tests/skills/test_version_one_snapshot.py -q
+        run: bash scripts/run_tests.sh tests/skills/test_version_one_snapshot.py tests/skills/test_setup_patch_101.py -q

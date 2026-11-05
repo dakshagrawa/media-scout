@@ -1,4 +1,12 @@
-# Verification scope
+# Verification scope — setup 1.0.1
+
+This selective update has its own public manifest, five additional offline setup contracts and a new independent read-only PASS review. Both complete sanitized skill candidates were scanned using native `scan_skill` with agent-created trust; both returned safe/allowed, zero findings. These scans do not waive target-side admission.
+
+The current local full suite passed **81 tests**; the Windows-supported archive-only subset comprises **14 contracts**. Required/extraneous platform CI results must be read from the exact PR head; local results do not establish remote results. New setup workflow job names are distinct from required plugin workflow names; commands use fixed literal matrices, not untrusted event text. No original plugin assertions are suppressed. No release/tag/assets are published by this PR.
+
+Fresh local no-write reasoning fixtures separately exercised eight routing cases, three optional-output cases and four deployment-handoff edge cases. These are model behavior spot checks, not deterministic enforcement or real external publication/restore acceptance. The selective instructions were read from an explicit allowlist and generalized before publication; original runtime/inventory/private-backup claims below remain historical 1.0.0 evidence. See [1.0.1 changes](CHANGES-1.0.1.md).
+
+## Historical setup 1.0.0 verification
 
 - Explicit setup allowlist and deterministic sanitization; privacy-pattern checks and independent read-only review.
 - Both complete local skill packages received native skills-guard-v10 SAFE verdicts, allowed as agent-created, zero findings; this does not waive future admission.

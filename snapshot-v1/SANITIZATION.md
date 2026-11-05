@@ -15,6 +15,10 @@ Do not recursively publish a live Hermes profile or use a generic `hermes backup
 - Cron runtime IDs, histories, delivery/subscription state and original trigger times are excluded. Public cron definitions are disabled; `source_enabled_at_capture` describes the old state, not import consent.
 - Historical enabled policies remain explicitly archival. The safe overlay disables forwarding/recovery and deletion; it must be applied before any imported role can act.
 
+### Setup 1.0.1 selective refresh
+
+Only role/review/output instructions and the six-file helper package are refreshed from local sources; the allowlist is recorded in MANIFEST.json. Activation timestamps and personal instruction quotes are removed, owner/repository bindings generalized, and contributor authorship retained. The helper inventory row hashes the sanitized bundled SKILL.md; other inventory/capture/runtime records remain historical. No new full profile export or private backup is implied. See CHANGES-1.0.1.md.
+
 ## Never included publicly
 
 Credential stores, `.env`, OAuth grants, vault access, cookies, browser profiles, pairing stores, owner allowlists with real IDs, private proposals/approvals, task databases, sessions/logs, media/transcripts/images, records/receipts, wiki content, existing watchlist entries and local private backup locators. Cryptographic file digests, upstream revisions and intentional contributor credit are not secret material.

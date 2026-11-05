@@ -92,7 +92,7 @@ def test_project_fit_and_publication_boundaries_preserved():
     assert "read-only" in contract
     assert "implement, investigate, save for later or reject" in contract
     helper = (SNAPSHOT / "profile/skills/media/media-to-github/SKILL.md").read_text(encoding="utf-8")
-    for text in ["Default remains the GitHub publishing operator", "full patch", "source notify+wake", "Material drift", "read the exact remote target before retrying"]:
+    for text in ["Default remains the GitHub publishing operator", "full patch", "source notify+wake", "Material drift", "read the exact remote result before retrying"]:
         assert text in helper
     assert "not a promise of a registered slash command" in helper
 

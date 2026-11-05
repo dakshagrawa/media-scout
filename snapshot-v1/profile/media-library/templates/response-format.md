@@ -22,8 +22,12 @@ Use a clear start/end separator and one bold title in Discord Markdown. Do not r
 - <what Default ruled out + a short concrete reason>
 - If none: None. Do not invent a rejection to fill the section.
 
+**Optional things you can do**
+- <one worthwhile, non-required next step + concrete benefit; label effort/cost/approval if relevant>
+- Omit this section when there is no genuinely useful optional action. Do not invent homework or repeat Planned / proposed.
+
 **Your action**
-- <one specific decision/upload needed + why; otherwise: None>
+- <a genuinely required decision/upload needed to proceed + why; otherwise: None required>
 
 <Optional, only if material: **Unverified / limits:** one short bullet>
 <Optional, for learning: **Learned:** one practical takeaway, unless already in Done/Bottom line>
@@ -42,4 +46,5 @@ Use a clear start/end separator and one bold title in Discord Markdown. Do not r
 - Put detailed transcript, citations, full technical reasoning and logs in the evidence/review artifact. Do not paste the whole artifact into the conversation. Do not attach identical artifacts again when already present; refer to the existing report. Native notification/attachment previews may still exist; Scout's separated final summary is the readable conclusion.
 - Keep tool activity and progress distinct. At most one brief **⏳ WORKING:** update when useful, plus **⚠️ BLOCKED:** only for a genuine blocker with plain-language cause and required action. Do not use FINAL RESULT or a completion checkmark for progress/blocked states.
 - Questions and ordinary follow-ups may use a shorter direct answer. Do not reprint every section for every tiny reply. Use the full format for a completed item's conclusion or a substantive changed conclusion.
+- Separate optional opportunities from requirements: **Optional things you can do** contains at most 1–2 evidence-backed, clearly elective actions and why they may help. Omit it if empty; do not turn every video into homework, repeat another section or invent project facts. A suggestion may name a possible issue/PR or experiment, but remains not started and requires its normal action-specific approval before execution. **Your action** is only for something actually required to unblock requested work; say **None required** when there is no such blocker, even if optional ideas exist. Keep the existing Default/direct-lane reasoning boundaries; presentation does not grant Scout new personalized recommendation authority.
 - Keep genuine command-security prompts and separately scoped action approvals intact. Do not ask for forwarding approval, and do not insert an approval prompt just to complete this format.

@@ -1,13 +1,15 @@
-# Version-one deployment snapshot
+# Version-one deployment snapshot — setup 1.0.1
+
+**PR candidate, not a new published release.** See [1.0.1 changes](CHANGES-1.0.1.md). This is a selective instruction refresh over immutable setup 1.0.0, not a new full runtime/private-state capture. Original dependency/configuration inventory stays historical except the explicitly updated bundled helper row.
 
 This directory preserves a **sanitized instruction-driven Media Scout setup**, captured for migration and rollback reference. It is not an automatic installer, a copy of private state, or a production-readiness certification. It is distinct from the experimental native plugin elsewhere in this repository, which was not installed in the captured deployment. Do not silently switch between the two implementations.
 
 ## What is preserved
 
 - Scout role instructions; canonical source identity; evidence/reuse and deduplication procedures.
-- Automatic separate Default review, source-thread return, project-fit recommendations and private knowledge capture.
-- The complete local `media-to-github` skill, two references and issue/PR templates, including exact-approval and Default publishing boundaries.
-- Response format with recap, clear final-result separation and concise Done/Proposed/Rejected/Your action sections.
+- Automatic separate Default review with bounded Scout direct-answer triage, source-thread return, project-fit recommendations and private knowledge capture.
+- The complete local `media-to-github` 0.2.0 skill, three references and issue/PR templates, including exact-approval and Default publishing boundaries.
+- Response format with recap, clear final-result separation and concise Done/Proposed/Rejected sections, optional elective owner actions, and required Your action/None required.
 - Seven-day raw-cache / ninety-day evidence retention, permanent summaries, bounded cleanup and protected-item rules.
 - Native recovery and quota handling; optional browser reconciliation remains disabled.
 - Central deferred-skill watchlist contract and local knowledge/wiki instructions.
