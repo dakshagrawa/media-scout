@@ -1,3 +1,6 @@
 # Preserve unified-diff blank context lines (one literal space) byte-for-byte.
 # Do not disable whitespace checking for source, docs, tests or other patches.
 patches/media-thread-naming/instagram-thread-names.patch text eol=lf whitespace=-blank-at-eol,-blank-at-eof
+
+# The archived snapshot is content-addressed; checkout must not rewrite its bytes.
+snapshot-v1/** text eol=lf
