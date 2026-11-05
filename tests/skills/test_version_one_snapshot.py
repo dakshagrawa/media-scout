@@ -19,7 +19,7 @@ def snapshot_files():
 
 def test_snapshot_manifest_identity():
     manifest = json.loads((SNAPSHOT / "MANIFEST.json").read_text(encoding="utf-8"))
-    files = {str(p.relative_to(SNAPSHOT)): p for p in snapshot_files() if p.name != "MANIFEST.json"}
+    files = {p.relative_to(SNAPSHOT).as_posix(): p for p in snapshot_files() if p.name != "MANIFEST.json"}
     assert set(files) == set(manifest["files"])
     for name, path in files.items():
         assert hashlib.sha256(path.read_bytes()).hexdigest() == manifest["files"][name]["sha256"]
