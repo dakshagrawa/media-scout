@@ -13,6 +13,7 @@ The project was split from [dakshagrawa/hermes-workflows](https://github.com/dak
 - [Acceptance criteria](workflows/media-scout/acceptance.md)
 - [Contribution guidelines](CONTRIBUTING.md) and [security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
+- [Inactive Agent Reach fallback archive](archive/agent-reach/README.md) — pinned original instructions, not installed or automatically activated.
 
 The plugin at `plugins/media-scout` is the native executable extension. It handles trusted intake bookkeeping, extraction claims, bounded evidence persistence, native reviewer handoff and separately opted-in retention. Hermes's admitted tools perform acquisition/transcription/vision; a reviewer uses its own authorized profile context. The workflow documents how to configure the native roles and features. The top-level `media-evidence-library` remains a separately reviewable instruction skill. The optional patch under `patches/media-thread-naming` is not required or automatically applied.
 
