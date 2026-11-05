@@ -274,6 +274,9 @@ def _capture(ctx, **kwargs):
             return None
         if (source.get("user_id") != expected["owner_id"] or source.get("scope_id", source.get("guild_id")) != expected["guild_id"] or source.get("parent_chat_id") != expected["parent_channel_id"]):
             return None
+        scoped_thread = _config(ctx, "intake_thread_id", "")
+        if scoped_thread and (not isinstance(scoped_thread, str) or source.get("thread_id") != scoped_thread):
+            return None
         message_id, session_key = kwargs.get("message_id"), kwargs.get("session_key")
         if any(not isinstance(v, str) or not v or len(v) > 512 for v in (message_id, session_key, source.get("chat_id"), source.get("thread_id"))):
             return None
@@ -317,6 +320,19 @@ def _data_root():
     return root
 
 
+def _owner_intent_overrides_review(source_text):
+    """Recognize a bounded set of explicit owner requests against review/sharing."""
+    intent = URL_RE.sub("", source_text or "")
+    return bool(re.search(
+        r"(?im)\blocal[ -]only\b|\bkeep\s+(?:this|it)\s+(?:local|private|confidential|secret|to\s+yourself)\b|"
+        r"\b(?:for\s+my\s+eyes\s+only|between\s+(?:you\s+and\s+me|us))\b|"
+        r"\b(?:do\s+not|don['’]?t|dont|no|stop)\s+"
+        r"(?:review(?:ing)?|forward(?:ing)?|send(?:ing)?|shar(?:e|ing)|show(?:ing)?|tell(?:ing)?)\b|"
+        r"\bnot\s+for\s+review\b|"
+        r"^\s*(?:stop|defer|reject)[.!]?\s*$", intent
+    ))
+
+
 def _review(ctx, db, media_id, *, status_only=False, context=None):
     from .bridge import NativeBridge
     from .retention import safe_file, fingerprint
@@ -353,8 +369,7 @@ def _review(ctx, db, media_id, *, status_only=False, context=None):
     source = db.execute("SELECT message_id,source_url,platform,owner_id,guild_id,parent_channel_id,chat_id,thread_id,session_key,source_text,chat_type FROM receipts WHERE media_id=? ORDER BY created_at,rowid LIMIT 1", (media_id,)).fetchone()
     if not source or not source[8] or source[3] != owner:
         return {"error": "complete trusted original source required"}
-    intent = URL_RE.sub("", source[9])
-    if re.search(r"(?im)\blocal[ -]only\b|^\s*(?:stop|defer|reject)[.!]?\s*$|\b(?:do not|don't|dont|no|stop)\s+(?:review|reviewing|forward|forwarding|send|sending)\b", intent):
+    if _owner_intent_overrides_review(source[9]):
         return {"error": "owner source overrides automatic review"}
     origin: dict = dict(zip(("message_id", "source_url", "platform", "user_id", "guild_id", "parent_chat_id", "chat_id", "thread_id", "session_key"), source[:9]))
     origin["chat_type"] = source[10]

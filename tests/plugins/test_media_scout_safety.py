@@ -6,6 +6,18 @@ import sqlite3
 from test_media_scout_core import load_module
 
 
+def test_owner_submission_intent_suppresses_automatic_review(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    for text in (
+        "keep this local", "don’t share this", "do not share this",
+        "don't send this to Default", "not for review", "dont share this",
+        "keep this private", "don’t show this to anyone", "keep it confidential", "for my eyes only",
+    ):
+        assert mod._owner_intent_overrides_review(text), text
+    for text in ("https://example.com/keep-this-local", "please review this", "share with my team"):
+        assert not mod._owner_intent_overrides_review(text), text
+
+
 def fixture_record(mod, tmp_path):
     path = tmp_path / "state.db"
     db = sqlite3.connect(path, timeout=5)
@@ -195,4 +207,43 @@ def test_complete_text_requires_bounded_retained_segments_not_just_a_count(monke
         assert "error" in mod.save_evidence(db, media, token, "Synthetic text", evidence, "complete"), invalid
     evidence = dict(base, text_content=["SYNTHETIC captured source text, not real creator material."])
     assert mod.save_evidence(db, media, token, "Synthetic text", evidence, "complete")["saved"]
+    db.close()
+
+
+def test_optional_intake_thread_scope_leaves_other_threads_untouched(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    settings = {"owner_id": "owner", "guild_id": "7", "parent_channel_id": "8", "intake_thread_id": "101"}
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default))
+    source = {"platform": "discord", "user_id": "owner", "scope_id": "7", "parent_chat_id": "8", "chat_type": "group"}
+    def capture(thread, message, url):
+        return mod._capture(ctx, platform="discord", source=dict(source, chat_id=thread, thread_id=thread), session_key="discord:fixture:" + thread, message_id=message, text=url)
+    assert capture("102", "not-pilot", "https://youtu.be/AbCdEf12345") is None
+    accepted = capture("101", "pilot", "https://youtu.be/AbCdEf12345")
+    assert accepted
+    db = mod._db()
+    assert db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0] == 1
+    assert db.execute("SELECT thread_id FROM receipts").fetchone()[0] == "101"
+    db.close()
+
+
+def test_review_opt_out_never_dispatches_or_creates_review_rows(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    assert mod.save_evidence(db, media, token, "Synthetic test only", observed(), "partial")["saved"]
+    settings = {"owner_id": "owner", "auto_review": True, "review_policy_reference": "synthetic authorized fixture"}
+    calls = []
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default), dispatch_tool=lambda *a, **kw: calls.append((a, kw)))
+    import importlib
+    assert isinstance(mod.__package__, str)
+    bridge = importlib.import_module(mod.__package__ + ".bridge")
+    monkeypatch.setattr(bridge.shutil, "which", lambda name: "/usr/bin/hermes")
+    for phrase in ("keep this local", "don’t share this", "do not share this", "don't send this to Default", "not for review", "keep this private", "don’t show this to anyone", "keep it confidential", "for my eyes only"):
+        db.execute("UPDATE receipts SET source_text=?", (phrase + " https://instagram.com/p/AbC123",)); db.commit()
+        result = mod._review(ctx, db, media)
+        assert result["error"] == "owner source overrides automatic review"
+        assert db.execute("SELECT COUNT(*) FROM reviews").fetchone()[0] == 0
+    assert calls == []
     db.close()

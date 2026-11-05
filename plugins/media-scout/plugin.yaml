@@ -22,6 +22,10 @@ config_schema:
   parent_channel_id:
     type: string
     default: ""
+  intake_thread_id:
+    type: string
+    default: ""
+    description: "Optional single-thread intake restriction for an isolated pilot; empty permits the configured parent channel."
   auto_review:
     type: boolean
     default: false

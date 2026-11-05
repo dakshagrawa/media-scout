@@ -60,13 +60,13 @@ def main():
         import tools.terminal_tool
         launcher = shutil.which("hermes")
         assert launcher
-        def terminal(command):
-            raw = registry.dispatch("terminal", {"command": command, "timeout": 30})
+        def terminal(command, timeout=30):
+            raw = registry.dispatch("terminal", {"command": command, "timeout": timeout})
             result = json.loads(raw) if isinstance(raw, str) else raw
             assert result.get("exit_code") == 0, result
             return result
         prefix = f"env HERMES_HOME={shlex.quote(str(home))} {shlex.quote(launcher)} kanban"
-        terminal(prefix + " boards create scout-fixture")
+        terminal(prefix + " boards create scout-fixture", timeout=180)
         manager = PluginManager(); manager.discover_and_load()
         assert any(p.get("name") == "media-scout" and p.get("enabled") for p in manager.list_plugins())
         def call(**payload):

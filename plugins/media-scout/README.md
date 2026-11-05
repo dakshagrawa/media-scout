@@ -41,6 +41,10 @@ hermes plugins doctor media-scout --ci
 
 Use [the companion role example](examples/scout-SOUL.md) to direct the intake profile to load `skill_view(name="media-scout:workflow")` for supported submissions. Plugin skills are read-only and namespaced, not copied over your personal skills. Enabling a plugin does not grant it broad permissions over unrelated profiles.
 
+## Isolated pilot scope
+
+For qualification alongside an existing instruction workflow, set `intake_thread_id` to one dedicated test thread under the configured parent channel. The admission hook then ignores every other thread before creating records or naming it. Empty preserves the usual configured-channel scope. Configure the intake role to use the plugin only in that test thread and retain its existing workflow elsewhere. Keep cleanup off and old catalogs intact; installing/enabling alone does not migrate records or qualify delivery. An actual owner submission, real evidence, separate reviewer and source-thread result are still required.
+
 ## Platform-specific thread names
 
 Enable `rename_threads` only after granting the declared native `gateway.platform_actions` capability through Hermes's plugin consent UI/CLI. Both gates are required. Names follow `youtube_<video_id>`, `threads_<post_id>`, `tiktok_<post_id>`, `snapchat_<spotlight_id>` and the corresponding source prefix; opaque shares use `*_share_*`. IDs remain case-preserving and titles are bounded/sanitized.
