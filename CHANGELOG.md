@@ -4,6 +4,8 @@ All notable changes to Media Scout packages in this repository are recorded here
 
 ## Unreleased
 
+- Selectively adapt Agent Reach's public-first retrieval, result-completeness checks and bounded failure handling into the plugin's bundled workflow reference. Retain pinned upstream attribution/MIT notice. No Agent Reach runtime, installer, session copying, account management, new dependencies or live deployment changes.
+
 - Split Media Scout into `dakshagrawa/media-scout`. Filtered history has different commit IDs; original authors/dates and required package tags are preserved. No live deployment or private data is migrated or auto-updated.
 
 ## Historical source repository entries (before the split)

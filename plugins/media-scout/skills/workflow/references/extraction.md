@@ -2,6 +2,8 @@
 
 The plugin is a bookkeeping and handoff extension, not an extraction engine. It installs no media tools, model weights, browser sessions or credentials. Use native/admitted upstream capabilities already available to the operator; disclose missing prerequisites and their costs before proposing installation.
 
+Read [public-first retrieval and bounded recovery](retrieval-routing.md) when choosing acquisition tools, validating returned content or handling access failures. This is instruction-only guidance, not a new extractor dependency.
+
 ## A video or reel
 
 1. Preserve the exact submitted URL and any meaningful slide or timestamp context; use canonical identity for deduplication only.
