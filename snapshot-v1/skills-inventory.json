@@ -1,0 +1,135 @@
+{
+  "inventory": [
+    {
+      "name": "hermes-agent",
+      "version": "3.2.0",
+      "path": "autonomous-ai-agents/hermes-agent",
+      "sha256": "b66a4ab0387f58fd0c25efe6164ea99820a49eab9f3516883058b57e23f61c30",
+      "author": "Hermes Agent + Teknium",
+      "license": "MIT"
+    },
+    {
+      "name": "youtube-content",
+      "version": "1.0.0",
+      "path": "media/youtube-content",
+      "sha256": "b556a0d2a220b46b80eb011619f0c951404f4d6e2edcc8b4847faec512b55132",
+      "author": "Teknium (teknium1), Hermes Agent",
+      "license": "MIT"
+    },
+    {
+      "name": "media-evidence-library",
+      "version": "1.0.1",
+      "path": "media/media-evidence-library",
+      "sha256": "599a43bac170b33e0ff8f459104869873511990aba595b1b821c4375fddd574a",
+      "author": "Hermes Agent",
+      "license": "MIT"
+    },
+    {
+      "name": "media-to-github",
+      "version": "0.1.0",
+      "path": "media/media-to-github",
+      "sha256": "81ffa1b8c54d770cbee299e7cb884fc3ba2028509df6b21beaeecbd80500de99",
+      "author": "Daksh Agrawal (dakshagrawa), Hermes Agent",
+      "license": "MIT"
+    },
+    {
+      "name": "pdf",
+      "version": "1.1.0",
+      "path": "productivity/pdf",
+      "sha256": "407a5c1afdf9b596e6835499483ac2f712774250c1367f459efafb1293f6ef45",
+      "author": "Nous Research",
+      "license": "MIT"
+    },
+    {
+      "name": "llm-wiki",
+      "version": "2.1.0",
+      "path": "research/llm-wiki",
+      "sha256": "0229e37c1783fcac5b77cfb3242703666cf4aa472d2ae85b6bd5279756b515b6",
+      "author": "Hermes Agent",
+      "license": "MIT"
+    },
+    {
+      "name": "grounded-citations",
+      "version": "1.2.0",
+      "path": "research/grounded-citations",
+      "sha256": "1e022ba6244fc68825127183d4632263f47d64dc857ea8d65c5e86d605b74f38",
+      "author": "Hermes Agent + Teknium",
+      "license": "MIT"
+    },
+    {
+      "name": "kilogram",
+      "version": "unspecified",
+      "path": "research/kilogram",
+      "sha256": "c1f9b9186c7c0b877f399d129a70d8fb6cca8837a88f4bc6312a9f56fd07a518",
+      "author": "radionov",
+      "license": "MIT"
+    },
+    {
+      "name": "blocked-page-recovery",
+      "version": "1.0.0",
+      "path": "web/blocked-page-recovery",
+      "sha256": "b71179e82ff27c002e6593e792d9a64dad9a444901b8938f30204fa115592061",
+      "author": "Hermes Agent",
+      "license": "MIT"
+    }
+  ],
+  "source_policy": "Local skills are included sanitized. Bundled/third-party skills must be acquired from their original admitted sources and revalidated; hashes identify captured instructions, not approval to install.",
+  "disabled": [
+    "airtable",
+    "apple-notes",
+    "apple-reminders",
+    "architecture-diagram",
+    "arxiv",
+    "ascii-video",
+    "baoyu-infographic",
+    "box",
+    "claude-code",
+    "claude-design",
+    "codebase-inspection",
+    "codex",
+    "competitor-news-monitor",
+    "computer-use",
+    "design-md",
+    "document-to-action-items",
+    "docx",
+    "dogfood",
+    "email-inbox-triage",
+    "findmy",
+    "gif-search",
+    "github",
+    "google-workspace",
+    "hermes-agent-skill-authoring",
+    "himalaya",
+    "humanizer",
+    "imessage",
+    "inspecting-hermes-desktop-dom",
+    "manim-video",
+    "maps",
+    "meeting-action-items",
+    "microsoft-office",
+    "node-inspect-debugger",
+    "notion",
+    "obsidian",
+    "opencode",
+    "p5js",
+    "popular-web-designs",
+    "powerpoint",
+    "product-price-monitor",
+    "python-debugpy",
+    "requesting-code-review",
+    "sdlc-review",
+    "simplify-code",
+    "songsee",
+    "songwriting-and-ai-music",
+    "spike",
+    "systematic-debugging",
+    "teams-meeting-pipeline",
+    "test-driven-development",
+    "weekly-review-planning",
+    "xlsx",
+    "xurl"
+  ],
+  "autoload": [
+    "media-evidence-library"
+  ]
+}

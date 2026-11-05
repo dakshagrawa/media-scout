@@ -2,6 +2,12 @@
 
 All notable changes to Media Scout packages in this repository are recorded here. Entries below the split boundary are historical source-repository changes, not files or functionality retained in this standalone repository.
 
+## Setup snapshot 1.0.0 (version-one branch)
+
+- Preserve a sanitized instruction-driven deployment snapshot with local media-to-GitHub helper, Default project-fit review, full evidence/routing/retention contracts, disabled cron definitions and dependency/skill inventories.
+- Add explicit safe-import overlays, feature inventory, sanitization boundaries, archive integrity checks and restore/rollback runbook. No credentials, submissions or private backup assets are published; no live migration is performed.
+- Setup snapshot version is independent of the native plugin package version.
+
 ## Unreleased
 
 - Split Media Scout into `dakshagrawa/media-scout`. Filtered history has different commit IDs; original authors/dates and required package tags are preserved. No live deployment or private data is migrated or auto-updated.

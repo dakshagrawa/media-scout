@@ -1,0 +1,15 @@
+{
+  "review": "PASS",
+  "scope": "Independent read-only review of public candidate privacy, inactive defaults, references, feature documentation and restore claims.",
+  "remediation": [
+    "STT provider disabled; command reference non-executable.",
+    "Complete cron prompts exposed as readable files; persisted content compared to source after sanitization.",
+    "Approval-time metadata and personal instruction quote removed."
+  ],
+  "native_skill_admission": {
+    "scanner": "skills-guard-v10",
+    "media-evidence-library": "safe, allowed, zero findings",
+    "media-to-github": "safe, allowed, zero findings"
+  },
+  "limits": "Reviewer did not compute file hashes; parent verifies manifest and public/private archive extraction separately. No live rollback certification."
+}

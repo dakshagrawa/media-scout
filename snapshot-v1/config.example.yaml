@@ -1,0 +1,132 @@
+model:
+  default: gpt-6-luna
+  provider: openai-codex
+  base_url: https://chatgpt.com/backend-api/codex
+  api_mode: codex_responses
+platform_toolsets:
+  discord:
+  - browser
+  - clarify
+  - discord
+  - file
+  - kanban
+  - memory
+  - session_search
+  - skills
+  - stt
+  - terminal
+  - todo
+  - vision
+  - web
+  cli:
+  - browser
+  - clarify
+  - file
+  - kanban
+  - memory
+  - session_search
+  - skills
+  - stt
+  - terminal
+  - todo
+  - vision
+  - web
+  cron:
+  - browser
+  - file
+  - kanban
+  - skills
+  - terminal
+  - todo
+discord:
+  history_backfill: false
+  allow_any_attachment: true
+  allowed_channels: <channel-id>
+  free_response_channels: <channel-id>
+  auto_thread: true
+  free_response_auto_thread: true
+  missed_message_backfill:
+    enabled: false
+    channels: '["<configured-id>"]'
+    window_seconds: 21600
+    limit: 100
+    max_dispatches: 3
+    max_attempts: 3
+  server_actions: fetch_messages
+platforms:
+  discord:
+    enabled: false
+    extra:
+      allow_from:
+      - <configured-id>
+      auto_thread_media_ids: true
+    home_channel:
+      id: <channel-id>
+      name: <channel-name>
+stt:
+  provider: none
+  providers:
+    scout-local:
+      type: command
+      command: CONFIGURE_VERIFIED_LOCAL_STT_COMMAND_BEFORE_ENABLING
+      output_format: srt
+      timeout: 180
+      language: en
+skills:
+  disabled:
+  - airtable
+  - apple-notes
+  - apple-reminders
+  - architecture-diagram
+  - arxiv
+  - ascii-video
+  - baoyu-infographic
+  - box
+  - claude-code
+  - claude-design
+  - codebase-inspection
+  - codex
+  - competitor-news-monitor
+  - computer-use
+  - design-md
+  - document-to-action-items
+  - docx
+  - dogfood
+  - email-inbox-triage
+  - findmy
+  - gif-search
+  - github
+  - google-workspace
+  - hermes-agent-skill-authoring
+  - himalaya
+  - humanizer
+  - imessage
+  - inspecting-hermes-desktop-dom
+  - manim-video
+  - maps
+  - meeting-action-items
+  - microsoft-office
+  - node-inspect-debugger
+  - notion
+  - obsidian
+  - opencode
+  - p5js
+  - popular-web-designs
+  - powerpoint
+  - product-price-monitor
+  - python-debugpy
+  - requesting-code-review
+  - sdlc-review
+  - simplify-code
+  - songsee
+  - songwriting-and-ai-music
+  - spike
+  - systematic-debugging
+  - teams-meeting-pipeline
+  - test-driven-development
+  - weekly-review-planning
+  - xlsx
+  - xurl
+  project_discovery: false
+  auto_load:
+  - media-evidence-library

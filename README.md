@@ -6,6 +6,10 @@ The project was split from [dakshagrawa/hermes-workflows](https://github.com/dak
 
 **Status: experimental, not production-ready.** Offline contracts and synthetic native SDK qualification do not establish live per-platform extraction or end-to-end Discord/provider reliability. Review [qualification](plugins/media-scout/QUALIFICATION.md) before installation.
 
+## Frozen version-one setup
+
+The `version-one` branch and `media-scout-setup-v1.0.0` release preserve the sanitized **instruction-driven deployment**, including local skills, project-fit review, issue/PR templates, policies and recovery documentation. Start at [snapshot-v1/README.md](snapshot-v1/README.md). This is separate from the experimental native plugin below; public templates are not consent to activate connections, forwarding or deletion. No private backup is published.
+
 ## Start here
 
 - [Install, configure, security and qualification](plugins/media-scout/README.md)
