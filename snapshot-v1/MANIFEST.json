@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "algorithm": "sha256",
+  "setup_version": "1.0.1",
+  "capture_date_utc": "20261105T012827Z",
+  "repository_base": "92348604f1cbc45d01a98178d43b9bc57e156bf2",
+  "scope": "sanitized setup allowlist, not private data or automatic installer",
+  "files": {
+    "CHANGES-1.0.1.md": {
+      "sha256": "20c468d57291fa752963a82c3a15fe810bf33734bbc8650696bed651c72bd42e",
+      "bytes": 5997
+    },
+    "FEATURES.md": {
+      "sha256": "cc1a7190503a753ac28a210e9f7af7b9c3a7abcbda91bbe56f5587358644399f",
+      "bytes": 5295
+    },
+    "PUBLICATION-REVIEW.json": {
+      "sha256": "36d6a6da43eae45f3edbd0a7ed7246171f87241069ca205b7d34af1f2320f134",
+      "bytes": 2030
+    },
+    "README.md": {
+      "sha256": "cc20fd4e2d0e9f7ef4208012596bcedea31fe74349f7968a53d1082a478b9bb4",
+      "bytes": 5176
+    },
+    "RESTORE.md": {
+      "sha256": "f7b7c85f5d327eb1da0aaf117eaf9c6b05643cc91598176c638bef402c197408",
+      "bytes": 6818
+    },
+    "SANITIZATION.md": {
+      "sha256": "5ca24a03f11630f214112df959e9cf97c74bb639c4c6ac9dd29967d2e7780188",
+      "bytes": 3446
+    },
+    "VERIFICATION.md": {
+      "sha256": "d08def881de544be6b0a651c789828a46e84d17f6d91748b07af3c0a81a2b61f",
+      "bytes": 3431
+    },
+    "config.example.yaml": {
+      "sha256": "9ad63a030322fa032fb5a5aa738865aed27ea48f4e440f248f20284213429f8f",
+      "bytes": 2355
+    },
+    "cron-prompts/reconciliation.md": {
+      "sha256": "7a5b2284c3e377733f5cd1c054ddbbb61a80095e3933e91902903e4b69cbf49d",
+      "bytes": 2813
+    },
+    "cron-prompts/retention.md": {
+      "sha256": "bbdffc71da988d415878bc063ca8b828ed8383873b1bd4f8162b8ae9a3b9f778",
+      "bytes": 1227
+    },
+    "cron.definitions.json": {
+      "sha256": "a80987b035e71bf0f0d3e0d49ef654c025434ab61941020979f0f63faa9c60ac",
+      "bytes": 989
+    },
+    "dependencies.json": {
+      "sha256": "21809f91966c2517e1cad1abbc13b8b9626727125da243c512c9991b51257ced",
+      "bytes": 2591
+    },
+    "dependency-sources.json": {
+      "sha256": "83083689efae8657611e25fc2ded80ddb108f87c48fff6726140efb00276397f",
+      "bytes": 762
+    },
+    "native-naming-identity.json": {
+      "sha256": "0392ed0cdaa90bd2360013a28408ea7c28be590cd4c8b69762090fad8de3e393",
+      "bytes": 706
+    },
+    "policy.safe-defaults.json": {
+      "sha256": "4d293c5c245efdcb1bf1e84dc41a7b414e0bb1212107ca514c6591e24487e927",
+      "bytes": 941
+    },
+    "profile/SOUL.md": {
+      "sha256": "4a10d2392a612a40eb4e3f0ccc77d01cedb54e0e7cb9fbf469747a07ff7e2918",
+      "bytes": 25963
+    },
+    "profile/media-library/policy.json": {
+      "sha256": "c1fdea28b5eafcd995572f7876080fd02edeab5bcc35e604f243b8bdbc14f413",
+      "bytes": 943
+    },
+    "profile/media-library/recovery-policy.json": {
+      "sha256": "ee7d660fa4ef1482409d907b61cc855efc181f9431b8d5cac2ebaff039fc1071",
+      "bytes": 1262
+    },
+    "profile/media-library/review-policy.md": {
+      "sha256": "c70c152c83b764f81ae45ef95b7645e06d32702abedb998b606dbaf2e0cfadfd",
+      "bytes": 5138
+    },
+    "profile/media-library/templates/primary-review-contract.md": {
+      "sha256": "615352e42a6e22e78866b8a46c6d5d1620c8c01c7e2a8aeff081e2603952cb8a",
+      "bytes": 12379
+    },
+    "profile/media-library/templates/response-format.md": {
+      "sha256": "897f516240744313e2123f8471f5ccfd253be43dc975eea7f313e51efd84c004",
+      "bytes": 6330
+    },
+    "profile/skills/media/media-evidence-library/SKILL.md": {
+      "sha256": "9e153632e4ee7290d7fbfc9e25de4f029dbb8b28ef79494e31ea567406bb25c6",
+      "bytes": 49611
+    },
+    "profile/skills/media/media-evidence-library/references/approved-review-routing.md": {
+      "sha256": "61d10882df57a07602a49133e27a28ac2b8fd783a9c9376fb580dcdb6c20582d",
+      "bytes": 9572
+    },
+    "profile/skills/media/media-evidence-library/references/native-recovery.md": {
+      "sha256": "a03aaf17cb2817662131bc3d277e57ca34a4a7ac3077e6775accd9fa41551cb8",
+      "bytes": 9588
+    },
+    "profile/skills/media/media-evidence-library/references/retention-cleanup.md": {
+      "sha256": "b805b42d0113da941c83f0987c16082aef4710659f396115f61ee407ed5e8397",
+      "bytes": 4956
+    },
+    "profile/skills/media/media-evidence-library/references/source-provenance.md": {
+      "sha256": "aae8eca440f2ca931a98adb302914a11b597e8eb3424112921ae328965feeb2f",
+      "bytes": 3223
+    },
+    "profile/skills/media/media-to-github/SKILL.md": {
+      "sha256": "186b7d68d94c52f697e7972465574617ff1ebce64b65a9fbb6408be94f6578f9",
+      "bytes": 17948
+    },
+    "profile/skills/media/media-to-github/references/context-placement.md": {
+      "sha256": "04eb2d0506af5c13f1635c298699319e9f61ebce5425ba82a968931f0ea73a1c",
+      "bytes": 2398
+    },
+    "profile/skills/media/media-to-github/references/implementation-deployment-handoff.md": {
+      "sha256": "a8fd3f9b8aa69f589e21602559514a40aa238cd5fa580097098ca88a96f9aac8",
+      "bytes": 5502
+    },
+    "profile/skills/media/media-to-github/references/publication-checklist.md": {
+      "sha256": "a332e21cddafcf95b81e7b3dea87443c4bbfa3e4103523b5fabf3fcca1eb16a3",
+      "bytes": 4784
+    },
+    "profile/skills/media/media-to-github/templates/issue.md": {
+      "sha256": "e1bd1072344023e79f8a0cad194b02d74ba22869961370ed46ee00294141f3a7",
+      "bytes": 3718
+    },
+    "profile/skills/media/media-to-github/templates/pull-request.md": {
+      "sha256": "4e7cf50e665adbf7b1e61cbabdb1e54cb19db30d9ce181ea5bbc075fb92dec6e",
+      "bytes": 3708
+    },
+    "recovery.safe-defaults.json": {
+      "sha256": "3406ad8ebeacd8a409a4ed626f23485132203b111430e9ec8c7586da6fceb6e8",
+      "bytes": 1263
+    },
+    "skills-inventory.json": {
+      "sha256": "73e52a0b2b0e3825254a6bf5e85b03fa300fea88dee39443139b8c306a9cc3d2",
+      "bytes": 3855
+    },
+    "stt-command.reference.txt": {
+      "sha256": "5c01c6e327cbbd1c8cf25a5ca0968fb86229e6ee2ff43af276c44ce2737e1bc7",
+      "bytes": 686
+    }
+  },
+  "baseline_setup_version": "1.0.0",
+  "baseline_setup_commit": "abf747ac3fbbd7494df30751466ea36dec215a98",
+  "refresh_scope": "selective instruction update; capture_date_utc and unrefreshed runtime inventories describe 1.0.0",
+  "refreshed_source_allowlist": [
+    "SOUL.md",
+    "media-library/review-policy.md",
+    "media-library/templates/primary-review-contract.md",
+    "media-library/templates/response-format.md",
+    "skills/media/media-to-github/SKILL.md",
+    "skills/media/media-to-github/references/context-placement.md",
+    "skills/media/media-to-github/references/publication-checklist.md",
+    "skills/media/media-to-github/references/implementation-deployment-handoff.md",
+    "skills/media/media-to-github/templates/issue.md",
+    "skills/media/media-to-github/templates/pull-request.md"
+  ]
+}

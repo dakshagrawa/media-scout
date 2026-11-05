@@ -1,0 +1,37 @@
+{
+  "format": "documentation-only; recreate with native cron tools after review",
+  "jobs": [
+    {
+      "name": "Media library retention cleanup \u2014 stable v1",
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 4 * * *",
+        "display": "0 4 * * *"
+      },
+      "enabled": false,
+      "skills": [
+        "media-evidence-library"
+      ],
+      "enabled_toolsets": null,
+      "source_enabled_at_capture": true,
+      "timezone": "<operator-local-timezone>",
+      "prompt_file": "cron-prompts/retention.md"
+    },
+    {
+      "name": "Media Scout missed-intake reconciliation",
+      "schedule": {
+        "kind": "cron",
+        "expr": "17 * * * *",
+        "display": "17 * * * *"
+      },
+      "enabled": false,
+      "skills": [
+        "media-evidence-library"
+      ],
+      "enabled_toolsets": null,
+      "source_enabled_at_capture": false,
+      "timezone": "<operator-local-timezone>",
+      "prompt_file": "cron-prompts/reconciliation.md"
+    }
+  ]
+}

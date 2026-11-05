@@ -1,0 +1,35 @@
+{
+  "setup_version": "1.0.1",
+  "review": "PASS",
+  "scope": "Independent read-only review of selective setup 1.0.1 privacy, inactive import boundaries, instruction-only scope, Default/exact-approval roles, handoff completeness and truthful version/inventory provenance.",
+  "baseline_1_0_0_review": {
+    "review": "PASS",
+    "scope": "Independent read-only review of public candidate privacy, inactive defaults, references, feature documentation and restore claims.",
+    "remediation": [
+      "STT provider disabled; command reference non-executable.",
+      "Complete cron prompts exposed as readable files; persisted content compared to source after sanitization.",
+      "Approval-time metadata and personal instruction quote removed."
+    ],
+    "native_skill_admission": {
+      "scanner": "skills-guard-v10",
+      "media-evidence-library": "safe, allowed, zero findings",
+      "media-to-github": "safe, allowed, zero findings"
+    },
+    "limits": "Reviewer did not compute file hashes; parent verifies manifest and public/private archive extraction separately. No live rollback certification."
+  },
+  "native_skill_admission_1_0_1": {
+    "media-evidence-library": "safe, allowed, zero findings",
+    "media-to-github": "safe, allowed, zero findings"
+  },
+  "limits": "No new release, live media acceptance, production migration or rollback certification.",
+  "independent_review": {
+    "method": "fresh gpt-6-luna read-only file session",
+    "result": "PASS; no substantive publication blocker found",
+    "limits": "No independent test execution, hash recomputation, remote checks or live profile/credential/private-backup inspection."
+  },
+  "parent_verification": [
+    "81 offline tests passed before final documentation-only review receipt update; final suite rerun required after manifest refresh.",
+    "Both bundled sanitized skill candidates scan safe/allowed with zero findings.",
+    "Unchanged plugin/patch/workflow/top-level evidence code and inactive settings compared to immutable baseline."
+  ]
+}

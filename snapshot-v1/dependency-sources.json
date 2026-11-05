@@ -1,0 +1,16 @@
+{
+  "kilogram": {
+    "source_url": "https://github.com/michaelradionov/kilogram/tree/899e18f62f1db615e0e39f5169f18a5600dcef87",
+    "source_revision": "899e18f62f1db615e0e39f5169f18a5600dcef87",
+    "repo_url": "https://github.com/michaelradionov/kilogram"
+  },
+  "llm-wiki": {
+    "identifier": "official/research/llm-wiki",
+    "version": "2.1.0",
+    "note": "Exact captured instruction hash is in skills-inventory.json; original source revision was not recorded by native lock metadata. Private backup preserves captured enabled skill files."
+  },
+  "bundled_skills": {
+    "hermes_revision": "b200f5bc60e31588ba2cb60e288029c4a54ba5fa",
+    "note": "Inventory hashes detect local drift; no credential files or entire Hermes codebase are distributed."
+  }
+}

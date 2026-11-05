@@ -22,6 +22,16 @@ auth.json
 .env*
 !.env.example
 **/media-library/
+# Only reviewed version-one setup contracts may bypass the runtime exclusion.
+!snapshot-v1/profile/media-library/
+snapshot-v1/profile/media-library/*
+!snapshot-v1/profile/media-library/policy.json
+!snapshot-v1/profile/media-library/recovery-policy.json
+!snapshot-v1/profile/media-library/review-policy.md
+!snapshot-v1/profile/media-library/templates/
+snapshot-v1/profile/media-library/templates/*
+!snapshot-v1/profile/media-library/templates/primary-review-contract.md
+!snapshot-v1/profile/media-library/templates/response-format.md
 **/sessions/
 **/memories/
 **/runtime/

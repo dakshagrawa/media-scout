@@ -1,0 +1,9 @@
+{
+  "hermes_revision": "b200f5bc60e31588ba2cb60e288029c4a54ba5fa",
+  "files": {
+    "plugins/platforms/discord/adapter.py": "3fec9074e8559ea6960d6ce4b45f0b60d8e2e2365156c55c53fc6c6a55ccb81e",
+    "plugins/platforms/discord/adapter_thread_titles.py": "71d8936ffa051eb5f0a2526d25453910c1ac1ca04c37f0180b445318dab4d005",
+    "tests/gateway/test_discord_auto_thread_media_ids.py": "dd8f2bf29b83cbe4183dc4f6e563a18e9b8b0e3ffc3a285352ae72478d42582d"
+  },
+  "note": "Exact source copies retained in private backup; public optional patch remains unchanged and must be qualified against target version. Source worktree has an untracked naming regression test; no installation update or runtime change performed."
+}

@@ -2,6 +2,19 @@
 
 All notable changes to Media Scout packages in this repository are recorded here. Entries below the split boundary are historical source-repository changes, not files or functionality retained in this standalone repository.
 
+## Setup snapshot 1.0.1 (PR candidate, not a new release)
+
+- Document/selectively preserve local bounded Scout/Default routing, expanded production-readiness repository routing and optional owner actions distinct from required blockers.
+- Bundle media-to-github 0.2.0 with complete implementation/deployment handoff requirements in both issue and PR templates, plus existing local evidence/assessment/approval/delivery refinements.
+- Preserve inert import overlays and all unchanged runtime/plugin code. Add version/inventory/reference/behavior contracts and refreshed public manifest. See `snapshot-v1/CHANGES-1.0.1.md` for provenance and limits.
+- Keep frozen setup 1.0.0 branch/tag/release intact; setup version is separate from bundled helper and native plugin versions.
+
+## Setup snapshot 1.0.0 (version-one branch)
+
+- Preserve a sanitized instruction-driven deployment snapshot with local media-to-GitHub helper, Default project-fit review, full evidence/routing/retention contracts, disabled cron definitions and dependency/skill inventories.
+- Add explicit safe-import overlays, feature inventory, sanitization boundaries, archive integrity checks and restore/rollback runbook. No credentials, submissions or private backup assets are published; no live migration is performed.
+- Setup snapshot version is independent of the native plugin package version.
+
 ## Unreleased
 
 - Harden automatic-review opt-outs for explicit local/no-sharing owner requests, with dispatch-level regression coverage. Add optional single-thread intake scope for a non-migrating pilot alongside the legacy workflow. Extend the synthetic harness first-run setup budget for Hermes 0.22.7 PM preparation; production native commands remain bounded at 30 seconds.
