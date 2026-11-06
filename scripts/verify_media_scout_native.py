@@ -31,12 +31,73 @@ CASES = {
 }
 
 
+def dependency_cache_path(value: str) -> Path:
+    """Validate an explicitly supplied private cache before native imports."""
+    path = Path(value)
+    if not path.is_absolute():
+        raise argparse.ArgumentTypeError("dependency cache path must be absolute")
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise argparse.ArgumentTypeError(f"dependency cache must exist: {exc}") from exc
+    if not resolved.is_dir():
+        raise argparse.ArgumentTypeError("dependency cache must be an existing directory")
+    return resolved
+
+
+def dependency_state_path(value: str, sdk: Path) -> Path:
+    """Validate an explicit private copy of the SDK's committed dependency state."""
+    path = Path(value)
+    if not path.is_absolute():
+        raise argparse.ArgumentTypeError("dependency state path must be absolute")
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise argparse.ArgumentTypeError(f"dependency state must exist: {exc}") from exc
+    if not resolved.is_dir():
+        raise argparse.ArgumentTypeError("dependency state must be an existing directory")
+    expected_key = hashlib.sha256(str(sdk.resolve()).encode()).hexdigest()[:16]
+    if resolved.name != expected_key:
+        raise argparse.ArgumentTypeError(f"dependency state directory must be named for SDK install key {expected_key}")
+    facts_path = resolved / "facts.json"
+    try:
+        facts = json.loads(facts_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise argparse.ArgumentTypeError(f"dependency state facts.json must be readable JSON: {exc}") from exc
+    packages = facts.get("packages") if isinstance(facts, dict) else None
+    venv = packages.get("venv") if isinstance(packages, dict) else None
+    environment = venv.get("environment") if isinstance(venv, dict) else None
+    if not isinstance(environment, str) or not Path(environment).is_absolute():
+        raise argparse.ArgumentTypeError("dependency state facts.json must contain an absolute packages.venv.environment")
+    environment_path = Path(environment)
+    if not environment_path.is_dir():
+        raise argparse.ArgumentTypeError("committed dependency environment must exist")
+    if not any(site.is_dir() for site in environment_path.glob("lib/python*/site-packages")):
+        raise argparse.ArgumentTypeError("committed dependency environment must contain an existing site-packages directory")
+    return resolved
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sdk", type=Path, required=True)
     parser.add_argument("--platforms", default="instagram")
     parser.add_argument("--report", type=Path)
+    parser.add_argument(
+        "--dependency-cache",
+        type=dependency_cache_path,
+        help="existing writable private copy of the native SDK dependency cache",
+    )
+    parser.add_argument(
+        "--dependency-state",
+        type=Path,
+        help="existing private copy of the SDK's committed dependency state; native runtime may write locks/leases there",
+    )
     args = parser.parse_args()
+    if args.dependency_state is not None:
+        try:
+            args.dependency_state = dependency_state_path(str(args.dependency_state), args.sdk)
+        except argparse.ArgumentTypeError as exc:
+            parser.error(str(exc))
     selected = args.platforms.split(",")
     assert len(selected) == len(set(selected)) and set(selected) <= set(CASES)
     sys.path.insert(0, str(args.sdk.resolve()))
@@ -45,6 +106,15 @@ def main():
         home = Path(directory)
         os.environ.update(HERMES_HOME=str(home), HOME=str(home / "user"))
         (home / "user").mkdir()
+        if args.dependency_cache is not None:
+            cache_link = home / "cache/uv"
+            cache_link.parent.mkdir(parents=True, exist_ok=True)
+            cache_link.symlink_to(args.dependency_cache, target_is_directory=True)
+        if args.dependency_state is not None:
+            # Caller must supply a private copy: native runtime writes locks/leases.
+            state_link = home / "installs" / args.dependency_state.name
+            state_link.parent.mkdir(parents=True, exist_ok=True)
+            state_link.symlink_to(args.dependency_state, target_is_directory=True)
         for key in ("HERMES_KANBAN_DB", "HERMES_KANBAN_BOARD", "HERMES_KANBAN_TASK", "HERMES_KANBAN_RUN"):
             os.environ.pop(key, None)
         shutil.copytree(plugin, home / "plugins/media-scout", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
@@ -73,7 +143,10 @@ def main():
         assert any(p.get("name") == "media-scout" and p.get("enabled") for p in manager.list_plugins())
         # Use the supported SDK config writer to exercise the already-bound hook's
         # live config read. This is still isolated synthetic profile data.
-        sdk_context = PluginContext(parse_manifest_file(home / "plugins/media-scout/plugin.yaml"), manager)
+        plugin_dir = home / "plugins/media-scout"
+        manifest = parse_manifest_file(plugin_dir / "plugin.yaml", plugin_dir, "user", "")
+        assert manifest is not None, f"failed to parse synthetic media-scout manifest: {plugin_dir / 'plugin.yaml'}"
+        sdk_context = PluginContext(manifest, manager)
         def call(**payload):
             raw = registry.dispatch("media_scout", payload, scope=manager.scope_key)
             result = json.loads(raw) if isinstance(raw, str) else raw
