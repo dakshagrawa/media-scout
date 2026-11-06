@@ -28,7 +28,7 @@ Turn owner-designated media into a complete, reviewable issue or pull-request pr
 - Native scanner, host approvals, official-source preferences and existing privacy boundaries remain in force. A refusal or failed check is not permission to change importer, weaken scanning or retry through another identity.
 
 ## Easy calls
-- “Use media-to-github to draft an issue from this reel for production-web-checklist.”
+- “Use media-to-github to draft an issue from this reel for <github-owner>/<checklist-repository>.”
 - “Use media-to-github to propose a PR from these two designated videos in media-scout.”
 - “Use media-to-github to update issue #N in owner/repo with this source context.”
 - “Use media-to-github, draft only; show what belongs in the skill versus a reference.”

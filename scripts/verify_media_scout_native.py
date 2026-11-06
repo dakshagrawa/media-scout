@@ -52,6 +52,8 @@ def main():
         # A test-only permission fixture, not a real user's consent record.
         (home / "config.yaml").write_text(json.dumps({"plugins": {"enabled": ["media-scout"], "entries": {"media-scout": {"settings": settings, "granted_capabilities": ["gateway.platform_actions"]}}}}))
         from hermes_cli.plugins import PluginManager
+        from hermes_cli.plugins import PluginContext
+        from hermes_cli.plugins_manifest import parse_manifest_file
         from hermes_cli.platform_actions import PlatformActions
         from gateway.config import Platform
         from gateway.session import SessionSource
@@ -69,6 +71,9 @@ def main():
         terminal(prefix + " boards create scout-fixture", timeout=180)
         manager = PluginManager(); manager.discover_and_load()
         assert any(p.get("name") == "media-scout" and p.get("enabled") for p in manager.list_plugins())
+        # Use the supported SDK config writer to exercise the already-bound hook's
+        # live config read. This is still isolated synthetic profile data.
+        sdk_context = PluginContext(parse_manifest_file(home / "plugins/media-scout/plugin.yaml"), manager)
         def call(**payload):
             raw = registry.dispatch("media_scout", payload, scope=manager.scope_key)
             result = json.loads(raw) if isinstance(raw, str) else raw
@@ -89,11 +94,11 @@ def main():
             tokens = set_session_vars(platform="discord", source="discord", chat_id=thread, chat_type="group", thread_id=thread, user_id="111", scope_id="222", session_key=session_key, session_id="synthetic-scout-sdk", message_id=message, parent_chat_id="333")
             try:
                 payload = dict(platform="discord", source=source.to_dict(), session_key=session_key, message_id=message, text="SYNTHETIC fixture, not real media: " + CASES[platform])
-                async def admit():
+                async def admit(admission_payload=payload):
                     adapter.expected_loop = asyncio.get_running_loop()
                     # Isolated adapter stand-in only. Production plugin never accesses or patches SDK internals.
                     with patch.object(PlatformActions, "_resolve_adapter", return_value=(adapter, None)):
-                        await manager.ainvoke_hook("post_gateway_admission", **payload)
+                        await manager.ainvoke_hook("post_gateway_admission", **admission_payload)
                 asyncio.run(admit())
                 recent = call(action="status")["recent"]
                 item = next(call(action="get", media_id=row["media_id"]) for row in recent if call(action="get", media_id=row["media_id"])["source_platform"] == platform)
@@ -101,6 +106,31 @@ def main():
                 assert item["source_platform"] == platform
                 assert adapter.titles[thread] == item["suggested_thread_title"]
                 assert item["thread_names"][0]["state"] == "acknowledged"
+                # Verify owner shutdown against persistent state and the fake adapter.
+                db_path = home / "plugin-data/media-scout/data.db"
+                with closing(sqlite3.connect(db_path)) as db:
+                    media_before = db.execute("SELECT * FROM media ORDER BY rowid").fetchall()
+                    receipts_before = db.execute("SELECT * FROM receipts ORDER BY rowid").fetchall()
+                titles_before = dict(adapter.titles)
+                shutdown_payload = dict(payload)
+                shutdown_payload["message_id"] = "shutdown-" + message
+                shutdown_payload["source"] = dict(payload["source"], message_id=shutdown_payload["message_id"])
+                shutdown_payload["text"] = "SYNTHETIC shutdown probe: https://instagram.com/p/ShutdownCase" + str(index) + "/"
+                try:
+                    sdk_context.set_config("owner_id", "")
+                    asyncio.run(admit(shutdown_payload))
+                    with closing(sqlite3.connect(db_path)) as db:
+                        assert db.execute("SELECT * FROM media ORDER BY rowid").fetchall() == media_before
+                        assert db.execute("SELECT * FROM receipts ORDER BY rowid").fetchall() == receipts_before
+                    assert adapter.titles == titles_before
+                    rejected = registry.dispatch("media_scout", {"action": "claim", "media_id": media}, scope=manager.scope_key)
+                    assert "error" in rejected.lower() or "owner" in rejected.lower(), rejected
+                finally:
+                    sdk_context.set_config("owner_id", "111")
+                with closing(sqlite3.connect(db_path)) as db:
+                    assert db.execute("SELECT * FROM media ORDER BY rowid").fetchall() == media_before
+                    assert db.execute("SELECT * FROM receipts ORDER BY rowid").fetchall() == receipts_before
+                assert adapter.titles == titles_before
                 claim = call(action="claim", media_id=media)
                 duplicate = registry.dispatch("media_scout", {"action": "claim", "media_id": media}, scope=manager.scope_key)
                 assert "already claimed" in duplicate
@@ -120,11 +150,14 @@ def main():
                 assert call(action="review_status", media_id=media)["status"] == "ready"
                 assert call(action="cleanup_plan")["candidates"] == []
                 terminal(prefix + " --board scout-fixture complete " + shlex.quote(review["task_id"]) + " --summary 'SYNTHETIC operator completion, not actual model review.' --result 'SYNTHETIC only'")
-                assert call(action="review_status", media_id=media)["status"] == "done"
+                completed = call(action="review_status", media_id=media)
+                assert completed["status"] == "done"
+                assert completed["review_verification"] == "unverified" and completed["accepted_learning"] is False
                 with closing(sqlite3.connect(home / "plugin-data/media-scout/data.db")) as db:
-                    note = json.loads(db.execute("SELECT result FROM reviews WHERE media_id=?", (media,)).fetchone()[0])
-                    assert "SYNTHETIC" in note["learning_note"] and "body" not in note
-                results.append({"platform": platform, "capture_replay": True, "naming_sdk_ack": True, "same_event_loop": True, "evidence_hash_verified": True, "same_native_task_on_retry": True, "native_status": "done", "completion_note_retained": True})
+                    stored = db.execute("SELECT result FROM reviews WHERE media_id=?", (media,)).fetchone()[0]
+                    note = json.loads(stored) if stored else {}
+                    assert not note or not note.get("learning_note")
+                results.append({"platform": platform, "capture_replay": True, "naming_sdk_ack": True, "same_event_loop": True, "owner_shutdown_verified": True, "evidence_hash_verified": True, "same_native_task_on_retry": True, "native_status": "done", "review_verification": "unverified synthetic operator completion", "completion_note_retained": False})
                 if args.report: args.report.write_text(json.dumps({"synthetic": True, "results": results}, indent=2))
             finally:
                 clear_session_vars(tokens)

@@ -351,11 +351,16 @@ def _review(ctx, db, media_id, *, status_only=False, context=None):
     if status_only:
         if not binding or not binding[0] or not binding[1]:
             return {"error": "no verified native review task exists"}
-        result = bridge.status(binding[0])
+        try:
+            saved_origin = json.loads(db.execute("SELECT origin FROM reviews WHERE media_id=? AND packet_version=?", (media_id, item["packet_version"])).fetchone()[0])
+            bridge_origin = {k: v for k, v in saved_origin.items() if k != "source_url"}
+        except (TypeError, ValueError, IndexError):
+            return {"task_id": binding[0], "error": "persisted review origin unavailable; result unverified", "review_verification": "unverified"}
+        result = bridge.status(binding[0], bridge_origin)
         task = result.get("task", {})
         if not result.get("error") and (hashlib.sha256(str(task.get("body", "")).encode("utf-8")).hexdigest() != binding[1] or task.get("assignee") != binding[2]):
             return {"error": "native review task drift; completion not accepted", "task_id": binding[0]}
-        if not result.get("error"):
+        if not result.get("error") and result.get("review_verification") == "verified":
             state = result.get("status", result.get("task", {}).get("status", "unknown"))
             note = task.get("latest_summary") or task.get("result") or ""
             if not isinstance(note, str):
@@ -363,6 +368,9 @@ def _review(ctx, db, media_id, *, status_only=False, context=None):
             retained = {"task_id": binding[0], "status": state, "learning_note": note[:8000], "note_truncated": len(note) > 8000}
             db.execute("UPDATE reviews SET state=?,result=? WHERE media_id=? AND packet_version=?", (state, json.dumps(retained), media_id, item["packet_version"]))
             db.commit()
+        elif not result.get("error"):
+            result["learning_note"] = ""
+            result["accepted_learning"] = False
         return result
     if not authorized():
         return {"error": "automatic review requires separate standing review-only consent"}

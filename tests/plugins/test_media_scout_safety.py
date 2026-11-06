@@ -2,6 +2,7 @@ import concurrent.futures
 import hashlib
 import json
 import sqlite3
+import pytest
 
 from test_media_scout_core import load_module
 
@@ -128,6 +129,31 @@ def test_native_capture_accepts_only_owner_scope_and_preserves_original_receipt(
     assert db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0] == 1
     assert db.execute("SELECT source_url,session_key,chat_type FROM receipts").fetchone() == ("https://instagram.com/reel/AbC123/?img_index=2", "discord:fixture", "group")
     db.close()
+
+
+def test_cleared_owner_dormants_registered_capture_and_tool_before_storage(monkeypatch, tmp_path):
+    import asyncio
+    import sys
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    settings = {"owner_id": "owner", "guild_id": "7", "parent_channel_id": "8"}
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default))
+    source = {"platform": "discord", "user_id": "owner", "chat_id": "99", "thread_id": "99", "scope_id": "7", "parent_chat_id": "8", "chat_type": "group"}
+    payload = dict(platform="discord", source=source, session_key="discord:fixture", message_id="m1", text="https://instagram.com/reel/AbC123/")
+    assert mod._capture(ctx, **payload)
+    settings["owner_id"] = ""
+    monkeypatch.setattr(mod, "_db", lambda: pytest.fail("dormant intake opened storage"))
+    different = {**payload, "message_id": "m2", "text": "https://youtube.com/watch?v=AbCdEf12345"}
+    assert mod._capture(ctx, **different) is None
+    asyncio.run(mod._admission(ctx, **different))
+    gateway = types.ModuleType("gateway")
+    session_context = types.ModuleType("gateway.session_context")
+    session_context.get_session_env = lambda *args: "owner"
+    monkeypatch.setitem(sys.modules, "gateway", gateway)
+    monkeypatch.setitem(sys.modules, "gateway.session_context", session_context)
+    for action in ("claim", "review", "review_status", "cleanup_apply"):
+        result = json.loads(mod._handler(ctx, {"action": action, "media_id": "a" * 24, "plan_id": "plan"}))
+        assert "error" in result
 
 
 def test_complete_text_post_requires_real_text_basis_and_no_missing_media(monkeypatch, tmp_path):

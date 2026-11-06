@@ -10,7 +10,7 @@ Turn an authorized Discord social-media submission into a durable source receipt
 - Preserve original URL, exact owner, parent/guild/thread/message identity and case-sensitive canonical media identity. A missing record selects creation, not a false blocker.
 - Persist receipts and summaries in profile-scoped native plugin storage; claim extraction transactionally so cooperating callers cannot start the same extraction concurrently.
 - Save bounded source-attributed evidence with explicit coverage, then create/reuse a native Kanban review task: blocked creation → source subscription → verification → persisted links → release.
-- Reuse the original review source for retries instead of redirecting results to a later thread. Read actual native task state rather than inventing a completion.
+- Reuse the original review source for retries instead of redirecting results to a later thread. Report native task status separately from review verification: `done` alone is not accepted learning.
 - Plan retention separately; apply only explicitly enabled, bounded, unchanged plans for registered owned artifacts. Permanent summaries, active work and pinned items are protected.
 
 Hermes's native tools still do acquisition/transcription/vision. The reviewer uses its own authorized profile context for reasoning and optional recommendations. Consequential actions always need separate approval. The plugin never starts an extra daemon or replaces Hermes core functions.
@@ -63,7 +63,7 @@ The intake agent loads the bundled workflow and uses `media_scout` actions. Cons
 | `claim` | Claim missing extraction work exclusively |
 | `save` | Persist actual evidence, coverage and retained summary |
 | `review` | Create/reuse and safely release an authorized native review |
-| `review_status` | Read actual native state/result |
+| `review_status` | Read native state and separately verify an assigned-profile worker run, handoff summary, and exact original-source subscription. A native/operator completion without this proof stays unverified and is not retained as reviewer learning. |
 | `cleanup_plan` | Inspect bounded registered expiry candidates |
 | `cleanup_apply` | Apply the authorized exact unchanged plan |
 | `register_cache` | Register an actual contained cache file under the current claim |
@@ -80,7 +80,7 @@ Runtime state lives in `plugin-data/media-scout/` under the **active profile hom
 
 Receipt/catalog summaries and native task references do not expire automatically. The retained review note is bounded and stored separately from detailed evidence. Native task bodies necessarily carry a compact evidence copy to the reviewer and have their own retention lifecycle; deleting a plugin artifact does not delete that native queue copy. Registered cache/evidence may expire under the configured policy; no wildcard/recursive directory deletion or unregistered-file cleanup is performed. Status lookups do not pretend a new user revisit occurred. An interrupted claim is not taken over merely because a timer elapsed; stop the old writer before explicit recovery.
 
-Disabling/removing the plugin does not cancel already released native tasks. Stop/cancel those using Hermes's native queue controls if needed. Do not delete persistent state as an uninstall shortcut.
+Disabling/removing the plugin does not cancel already released native tasks. On Hermes 0.22.7 a loaded plugin's hook remains wired after disable until restart; do not restart a shared gateway for rollback. First set `plugins.entries.media-scout.settings.owner_id` to the correctly typed empty string (`""`) through supported native config, then verify the stale hook is dormant using the regression/native verification evidence. Only then disable with `hermes plugins disable media-scout`. Preserve pilot state, task/subscription IDs and any already-released review work; native disable is not cancellation and does not stop in-flight writes or retract released tasks. Restore legacy pilot routing only after no writer remains. Keep the pilot single-thread until full qualification. Do not delete persistent state as an uninstall shortcut.
 
 ## Security and effect disclosure
 
@@ -94,7 +94,7 @@ Disabling/removing the plugin does not cancel already released native tasks. Sto
 
 ## Compatibility and qualification
 
-The v0.2.0 native runtime is Linux-scoped and requires Hermes >=0.22.6. It targets documented Hermes native plugin APIs: `post_gateway_admission`, `ctx.register_tool`, `ctx.register_skill`, `ctx.get_config`, `ctx.dispatch_tool`, `plugin_data_dir` and `plugin_db`. See [acceptance](ACCEPTANCE.md) for the exact tested release and boundary distinctions.
+The v0.2.1 native runtime is Linux-scoped and requires Hermes >=0.22.6. It targets documented Hermes native plugin APIs: `post_gateway_admission`, `ctx.register_tool`, `ctx.register_skill`, `ctx.get_config`, `ctx.dispatch_tool`, `plugin_data_dir` and `plugin_db`. See [acceptance](ACCEPTANCE.md) for the exact tested release and boundary distinctions.
 
 Version 0.2 supports one configured owner/profile and a single distinct supported social-media item per submission. See the [platform/form matrix](skills/workflow/references/sources.md): Instagram, YouTube, Threads, TikTok, public Snapchat, X/Twitter, Reddit, Facebook, Vimeo and Bluesky. Opaque shares remain explicitly provisional, not automatically canonicalized or cross-share deduplicated. It does not identify semantic reposts, batch different sources into one thread, replace extraction engines, implement all-history discovery or promise cross-system exactly-once execution. A native idempotency key plus persisted claim/recovery protects retries; SQLite and the queue are not one transaction. Source access, provider quota, native delivery and model behavior can still fail.
 

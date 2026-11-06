@@ -111,8 +111,8 @@
       "bytes": 3223
     },
     "profile/skills/media/media-to-github/SKILL.md": {
-      "sha256": "186b7d68d94c52f697e7972465574617ff1ebce64b65a9fbb6408be94f6578f9",
-      "bytes": 17948
+      "sha256": "507b3a901a8ca8974abef7f8cdeb629bc26bce9260763429516b12e15e460c96",
+      "bytes": 17961
     },
     "profile/skills/media/media-to-github/references/context-placement.md": {
       "sha256": "04eb2d0506af5c13f1635c298699319e9f61ebce5425ba82a968931f0ea73a1c",
@@ -139,7 +139,7 @@
       "bytes": 1263
     },
     "skills-inventory.json": {
-      "sha256": "73e52a0b2b0e3825254a6bf5e85b03fa300fea88dee39443139b8c306a9cc3d2",
+      "sha256": "acd90a821f46a90fa2dca1ff164e19a62f2842c0e5c8561aeb94dbf7106d45ca",
       "bytes": 3855
     },
     "stt-command.reference.txt": {

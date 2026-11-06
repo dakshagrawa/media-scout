@@ -42,6 +42,14 @@ def test_selective_routing_preserves_default_and_owner_limits():
     assert "2026-11-02" not in policy
 
 
+def test_easy_call_uses_canonical_checklist_repository_not_skill_path():
+    helper = text(HELPER / "SKILL.md")
+    easy_calls = helper.split("## Easy calls", 1)[1].split("## Procedure", 1)[0]
+    assert "<github-owner>/<checklist-repository>" in easy_calls
+    assert "production-web-checklist" not in easy_calls
+    assert "production-web-checklist/" in helper.split("## Procedure", 1)[1]
+
+
 def test_optional_actions_are_separate_from_required_blockers():
     for path in [SNAP / "profile/SOUL.md",
                  SNAP / "profile/media-library/templates/response-format.md",

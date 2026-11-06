@@ -28,7 +28,7 @@
       "name": "media-to-github",
       "version": "0.2.0",
       "path": "media/media-to-github",
-      "sha256": "186b7d68d94c52f697e7972465574617ff1ebce64b65a9fbb6408be94f6578f9",
+      "sha256": "507b3a901a8ca8974abef7f8cdeb629bc26bce9260763429516b12e15e460c96",
       "author": "Daksh Agrawal (dakshagrawa), Hermes Agent",
       "license": "MIT",
       "hash_scope": "sanitized bundled SKILL.md; original capture inventory otherwise retained"
