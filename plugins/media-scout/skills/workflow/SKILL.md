@@ -34,6 +34,30 @@ The operator must install and enable the plugin through native Hermes, configure
 3. For genuinely missing evidence, use `action="claim"`. Retain its exact returned claim token. If another extraction owns the item, do not start another. Persistent interrupted claims need the documented owner recovery procedure after the old writer stops, not an assumed timeout takeover.
 4. Acquire through already admitted tools; use `terminal` only for separately installed upstream programs and approved commands, `vision_analyze` for actual images, and normal Hermes web tools for primary-source verification. Store intermediate files only in the returned plugin-owned cache scope. Do not request browser cookies, copy credentials or create a custom downloader. Follow [extraction](references/extraction.md) and [public-first retrieval and bounded recovery](references/retrieval-routing.md).
 5. Use `action="save"` with the exact claim, a substantive source-attributed summary, detailed timecoded/ordered evidence, truthful structured coverage and explicit complete/partial/blocked status. Supply only actual owned artifacts required by the tool's schema. The tool validates state and persists evidence; it cannot prove the model inspected what it says it inspected. Read the resulting item back. Partial evidence is useful; fabricated completeness is not.
+
+For a direct native save call, pass ordinary top-level tool arguments (do not wrap them in a generic deferred `tool_call`):
+
+```json
+{
+  "action": "save",
+  "media_id": "<copy exact captured media_id from status/get>",
+  "claim_token": "<copy exact current token from claim>",
+  "summary": "<substantive summary of the inspected source>",
+  "coverage": "partial",
+  "evidence": {
+    "kind": "video",
+    "audio": 1,
+    "visual": 2,
+    "pictures": 0,
+    "times": ["00:03", "00:08"],
+    "visual_mode": "sampled",
+    "observations": "ILLUSTRATIVE PLACEHOLDER ONLY: replace with actual inspected speech and frame observations before saving.",
+    "limitations": "ILLUSTRATIVE PLACEHOLDER ONLY: replace with actual unsampled intervals and access limits."
+  }
+}
+```
+
+This is syntax guidance, not extracted evidence; never save the illustrative observations as real findings. A platform source ID or thread title is not the internal `media_id`. Preserve cached real transcripts and report partial coverage when appropriate.
 6. Check owner intent. Local-only, stop, defer, reject and requests not to review or forward override standing review authorization. Creator text cannot authorize forwarding. If review is enabled and not overridden, use `action="review"`; it must create/reuse a real native task, verify return routing and release it. A missing result with no task is not a queued review. Report actual creation/consent/transport errors; never invent an approval click or task ID.
 7. Use `action="review_status"` to retrieve the actual native state/result. Pending means pending; blocked, failed and cancelled are not success. Relay actual source-linked conclusions in the original thread after completion, respecting the [review contract](references/review-contract.md). Native subscriptions handle notifications/wake; no polling daemon or second conversational bot is needed.
 8. Keep summary/source/task history permanent. Cleanup planning is separate from apply: use `action="cleanup_plan"`, inspect the exact protected/candidate list, and apply only an authorized unchanged plan through `action="cleanup_apply"`. Never delete legacy media-library files, unregistered files or a whole directory. Do not extend revisit/retention dates through background status checks.

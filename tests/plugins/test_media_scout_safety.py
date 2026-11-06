@@ -100,6 +100,63 @@ def test_evidence_details_are_bounded_before_writing(monkeypatch, tmp_path):
     db.close()
 
 
+def test_item_action_missing_or_invalid_media_id_is_actionable_and_no_write(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    settings = {"owner_id": "owner", "guild_id": "7", "parent_channel_id": "8"}
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default))
+    gateway = types.ModuleType("gateway.session_context")
+    gateway.get_session_env = lambda name, default="": "owner"
+    monkeypatch.setitem(__import__("sys").modules, "gateway.session_context", gateway)
+    monkeypatch.setattr(mod, "_db", lambda: pytest.fail("invalid identity must not open storage"))
+    for action, media_id in (("save", None), ("claim", "instagram_shortcode"), ("review", "")):
+        args = {"action": action}
+        if media_id is not None:
+            args["media_id"] = media_id
+        result = json.loads(mod._handler(ctx, args))
+        assert "captured media_id" in result["error"]
+        assert "status or get" in result["error"]
+        assert "identity" not in result["error"] or "captured" in result["error"]
+    gateway.get_session_env = lambda name, default="": "intruder"
+    assert "owner identity required" in mod._handler(ctx, {"action": "save"})
+
+
+def test_evidence_counts_reject_descriptive_objects_with_field_guidance(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    ev = observed(); ev["audio"] = {"transcript": "descriptive data"}
+    result = mod.save_evidence(db, media, token, "summary", ev, "partial")
+    assert "audio" in result["error"] and "nonnegative integer" in result["error"]
+    assert mod.get_item(db, media)["claim_state"] == "running"
+    db.close()
+
+
+def test_declared_evidence_schema_matches_canonical_and_rejects_malformed_counts(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    registered = {}
+    ctx = types.SimpleNamespace(register_skill=lambda *a: None, register_hook=lambda *a: None,
+        register_command=lambda *a, **k: None, register_tool=lambda **kw: registered.update(kw))
+    mod.register(ctx)
+    schema = registered["schema"]["parameters"]["properties"]["evidence"]
+    assert set(schema["required"]) == {"audio", "visual", "pictures", "times", "observations"}
+    assert schema["properties"]["kind"]["enum"] == ["video", "image", "carousel", "text", "mixed"]
+    for field in ("audio", "visual", "pictures"):
+        assert schema["properties"][field]["type"] == "integer"
+        assert schema["properties"][field]["minimum"] == 0
+        assert schema["properties"][field]["maximum"] == 500
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    canonical = observed()
+    assert mod.save_evidence(db, media, token, "Illustrative synthetic fixture", canonical, "partial")["saved"]
+    media2 = mod.capture_receipt(db, "m2", {"platform": "discord", "user_id": "owner", "chat_id": "43", "thread_id": "43", "guild_id": "7", "parent_chat_id": "8", "session_key": "discord:fixture"}, "https://instagram.com/p/XyZ678")["media_id"]
+    token2 = mod.claim(db, media2, "owner")["claim_token"]
+    bad = dict(canonical, visual={"frames": 2})
+    assert "visual" in mod.save_evidence(db, media2, token2, "Illustrative synthetic fixture", bad, "partial")["error"]
+    db.close()
+
+
 def test_owner_change_cannot_release_previous_owners_claim(monkeypatch, tmp_path):
     import types
     mod = load_module(monkeypatch, tmp_path)

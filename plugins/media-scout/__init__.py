@@ -179,8 +179,9 @@ def save_evidence(db, media_id, token, summary, evidence, coverage):
         return {"error": "current claim and bounded nonempty summary required"}
     if coverage not in {"complete", "partial", "blocked"} or not isinstance(evidence, dict):
         return {"error": "explicit structured coverage required"}
-    if any(type(evidence.get(k)) is not int or not 0 <= evidence[k] <= 500 for k in ("audio", "visual", "pictures")):
-        return {"error": "bounded audio, visual and pictures counts required"}
+    for field in ("audio", "visual", "pictures"):
+        if type(evidence.get(field)) is not int or not 0 <= evidence[field] <= 500:
+            return {"error": f"evidence.{field} must be a nonnegative integer count from 0 to 500; put descriptions in observations or text_content"}
     times = evidence.get("times")
     if not isinstance(times, list) or len(times) > 500 or any(not isinstance(t, str) or len(t) > 32 for t in times):
         return {"error": "bounded observed times required"}
@@ -429,6 +430,10 @@ def _handler(ctx, args, **kwargs):
     actions = {"status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin"}
     if action not in actions:
         return json.dumps({"error": "unsupported action"})
+    item_actions = {"get", "claim", "save", "review", "review_status", "release", "register_cache", "pin"}
+    requested_media_id = args.get("media_id")
+    if action in item_actions and (not isinstance(requested_media_id, str) or not re.fullmatch(r"[a-f0-9]{24}", requested_media_id)):
+        return json.dumps({"error": "A captured media_id is required for this item action. Copy the exact media_id returned by media_scout status or get; a source ID, URL, or thread title is not the internal media_id."})
     try:
         db = _db()
     except Exception as error:
@@ -525,10 +530,16 @@ def register(ctx):
     schema = {"name": "media_scout", "description": "Capture-backed media evidence, exclusive claims, native review handoff and bounded owned retention. Load skill_view('media-scout:workflow') for supported social-media submissions.", "parameters": {
         "type": "object", "additionalProperties": False,
         "properties": {
-            "action": {"type": "string", "enum": ["status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin"]},
-            "media_id": {"type": "string", "maxLength": 64}, "claim_token": {"type": "string", "maxLength": 128},
-            "summary": {"type": "string", "maxLength": 4000}, "coverage": {"type": "string", "enum": ["complete", "partial", "blocked"]},
-            "evidence": {"type": "object", "description": "Actual observations: kind video/image/carousel/text/mixed; audio/visual/pictures counts, times and observations. Text-only completeness requires nonempty text_content segments, matching text_segments and has_media=false. Record visual_mode, limitations and audio_unavailable_reason where applicable."},
+            "action": {"type": "string", "enum": ["status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin"], "description": "For save, first copy the exact captured media_id from status/get and claim_token from claim. Pass summary, coverage and evidence as separate arguments."},
+            "media_id": {"type": "string", "maxLength": 64, "description": "Exact internal captured media_id returned by status/get or claim. Not the source post ID, URL, or platform thread title."}, "claim_token": {"type": "string", "maxLength": 128, "description": "Exact current claim_token returned by claim; required by save and cache registration."},
+            "summary": {"type": "string", "maxLength": 4000, "description": "For save: substantive summary grounded in actual inspected source evidence."}, "coverage": {"type": "string", "enum": ["complete", "partial", "blocked"], "description": "For save: truthful coverage state; use partial/blocked with evidence.limitations when coverage is incomplete."},
+            "evidence": {"type": "object", "description": "For save, provide evidence as a JSON object. audio, visual, pictures are integer counts 0–500, never descriptive objects. kind is video/image/carousel/text/mixed; times is a list of observed strings; observations is substantive actual observations or a source-access explanation. Optional: visual_mode (string; use full for complete non-text coverage), limitations (string; required for partial/blocked), audio_unavailable_reason (string), text_content (list of strings), text_segments (integer), has_media (boolean). Descriptions belong in observations/text_content/limitations. Counts do not prove inspection." , "properties": {
+                "kind": {"type": "string", "enum": ["video", "image", "carousel", "text", "mixed"]},
+                "audio": {"type": "integer", "minimum": 0, "maximum": 500}, "visual": {"type": "integer", "minimum": 0, "maximum": 500}, "pictures": {"type": "integer", "minimum": 0, "maximum": 500},
+                "times": {"type": "array", "maxItems": 500, "items": {"type": "string", "maxLength": 32}}, "observations": {"type": "string", "description": "Substantive actual observations or source-access explanation; at least 20 non-whitespace characters."},
+                "visual_mode": {"type": "string"}, "limitations": {"type": "string"}, "audio_unavailable_reason": {"type": "string"},
+                "text_content": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": MAX_TEXT}}, "text_segments": {"type": "integer"}, "has_media": {"type": "boolean"}
+            }, "required": ["audio", "visual", "pictures", "times", "observations"]},
             "plan_id": {"type": "string", "maxLength": 64}, "path": {"type": "string", "maxLength": 300}, "pinned": {"type": "boolean"}
         }, "required": ["action"]}}
     ctx.register_tool(name="media_scout", toolset="media_scout", schema=schema, handler=lambda args, **kw: _handler(ctx, args, **kw))
