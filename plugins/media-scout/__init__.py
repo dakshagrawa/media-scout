@@ -80,6 +80,7 @@ def initialize(db: sqlite3.Connection):
       session_key TEXT NOT NULL DEFAULT '', source_text TEXT NOT NULL DEFAULT '', chat_type TEXT NOT NULL DEFAULT 'group'
     );
     CREATE TABLE IF NOT EXISTS thread_titles (thread_id TEXT PRIMARY KEY, media_id TEXT NOT NULL, title TEXT NOT NULL, state TEXT NOT NULL, detail TEXT NOT NULL DEFAULT '');
+    CREATE TABLE IF NOT EXISTS thread_authors (thread_id TEXT PRIMARY KEY, media_id TEXT NOT NULL, author TEXT NOT NULL, title TEXT NOT NULL, updated_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS catalog_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS reviews (media_id TEXT NOT NULL, packet_version INTEGER NOT NULL,
       task_id TEXT NOT NULL DEFAULT '', origin TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending',
@@ -143,6 +144,7 @@ def get_item(db, media_id) -> dict | None:
     if parsed:
         item.update(source_platform=parsed.platform, source_post_id=parsed.post_id, canonical_url=parsed.canonical_url, identity_quality=parsed.identity_quality, suggested_thread_title=parsed.title)
     item["thread_names"] = [dict(zip(("thread_id", "title", "state", "detail"), r)) for r in db.execute("SELECT thread_id,title,state,detail FROM thread_titles WHERE media_id=?", (media_id,))]
+    item["thread_authors"] = [dict(zip(("thread_id", "author", "title", "updated_at"), r)) for r in db.execute("SELECT thread_id,author,title,updated_at FROM thread_authors WHERE media_id=?", (media_id,))]
     return item
 
 
@@ -292,7 +294,7 @@ def _capture(ctx, **kwargs):
         db = _db()
         captured = capture_receipt(db, message_id, {**source, "session_key": session_key}, found.original_url, text)
         if captured and captured["media_id"] == _identity_shortcode(found.identity_key):
-            return {"media_id": captured["media_id"], "source": source, "title": found.title}
+            return {"media_id": captured["media_id"], "source": source, "title": found.title or None, "platform": found.platform, "post_id": found.post_id}
     except Exception:
         # No content is logged. A failed capture cannot blackhole native ingress.
         return None
@@ -427,10 +429,10 @@ def _handler(ctx, args, **kwargs):
         return json.dumps({"error": "configured owner identity required"})
     if action == "status" and not configured:
         return json.dumps({"configured": False, "setup_needed": True})
-    actions = {"status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin"}
+    actions = {"status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin", "name_thread"}
     if action not in actions:
         return json.dumps({"error": "unsupported action"})
-    item_actions = {"get", "claim", "save", "review", "review_status", "release", "register_cache", "pin"}
+    item_actions = {"get", "claim", "save", "review", "review_status", "release", "register_cache", "pin", "name_thread"}
     requested_media_id = args.get("media_id")
     if action in item_actions and (not isinstance(requested_media_id, str) or not re.fullmatch(r"[a-f0-9]{24}", requested_media_id)):
         return json.dumps({"error": "A captured media_id is required for this item action. Copy the exact media_id returned by media_scout status or get; a source ID, URL, or thread title is not the internal media_id."})
@@ -530,7 +532,7 @@ def register(ctx):
     schema = {"name": "media_scout", "description": "Capture-backed media evidence, exclusive claims, native review handoff and bounded owned retention. Load skill_view('media-scout:workflow') for supported social-media submissions.", "parameters": {
         "type": "object", "additionalProperties": False,
         "properties": {
-            "action": {"type": "string", "enum": ["status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin"], "description": "For save, first copy the exact captured media_id from status/get and claim_token from claim. Pass summary, coverage and evidence as separate arguments."},
+            "action": {"type": "string", "enum": ["status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin", "name_thread"], "description": "For name_thread, pass exact captured media_id and actual author/uploader from admitted extraction metadata; title format provider_author_id, e.g. bluesky_alexbenzer_com_3mysmixc7hs2k. For save, copy exact media_id and claim_token and pass summary, coverage and evidence separately."},
             "media_id": {"type": "string", "maxLength": 64, "description": "Exact internal captured media_id returned by status/get or claim. Not the source post ID, URL, or platform thread title."}, "claim_token": {"type": "string", "maxLength": 128, "description": "Exact current claim_token returned by claim; required by save and cache registration."},
             "summary": {"type": "string", "maxLength": 4000, "description": "For save: substantive summary grounded in actual inspected source evidence."}, "coverage": {"type": "string", "enum": ["complete", "partial", "blocked"], "description": "For save: truthful coverage state; use partial/blocked with evidence.limitations when coverage is incomplete."},
             "evidence": {"type": "object", "description": "For save, provide evidence as a JSON object. audio, visual, pictures are integer counts 0–500, never descriptive objects. kind is video/image/carousel/text/mixed; times is a list of observed strings; observations is substantive actual observations or a source-access explanation. Optional: visual_mode (string; use full for complete non-text coverage), limitations (string; required for partial/blocked), audio_unavailable_reason (string), text_content (list of strings), text_segments (integer), has_media (boolean). Descriptions belong in observations/text_content/limitations. Counts do not prove inspection." , "properties": {
@@ -540,6 +542,62 @@ def register(ctx):
                 "visual_mode": {"type": "string"}, "limitations": {"type": "string"}, "audio_unavailable_reason": {"type": "string"},
                 "text_content": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": MAX_TEXT}}, "text_segments": {"type": "integer"}, "has_media": {"type": "boolean"}
             }, "required": ["audio", "visual", "pictures", "times", "observations"]},
-            "plan_id": {"type": "string", "maxLength": 64}, "path": {"type": "string", "maxLength": 300}, "pinned": {"type": "boolean"}
+            "plan_id": {"type": "string", "maxLength": 64}, "path": {"type": "string", "maxLength": 300}, "pinned": {"type": "boolean"}, "author": {"type": "string", "maxLength": 256, "description": "Actual source author/uploader copied from admitted extraction metadata; never the submitter, host, title, or a guess."}
         }, "required": ["action"]}}
-    ctx.register_tool(name="media_scout", toolset="media_scout", schema=schema, handler=lambda args, **kw: _handler(ctx, args, **kw))
+    async def native_handler(args, **kw):
+        if isinstance(args, dict) and args.get("action") == "name_thread":
+            from gateway.session_context import get_session_env
+            owner = get_session_env("HERMES_SESSION_USER_ID", "")
+            source = {
+                "platform": get_session_env("HERMES_SESSION_PLATFORM", ""),
+                "user_id": owner,
+                "chat_id": get_session_env("HERMES_SESSION_CHAT_ID", ""),
+                "thread_id": get_session_env("HERMES_SESSION_THREAD_ID", ""),
+                "scope_id": get_session_env("HERMES_SESSION_SCOPE_ID", ""),
+                "parent_chat_id": get_session_env("HERMES_SESSION_PARENT_CHAT_ID", ""),
+            }
+            injected = kw.get("source")
+            if injected is not None and hasattr(injected, "to_dict"):
+                injected = injected.to_dict()
+            if injected is not None and (not isinstance(injected, dict) or any(
+                    injected.get(key) not in (None, "") and injected.get(key) != value
+                    for key, value in source.items())):
+                return json.dumps({"error": "injected source conflicts with trusted session context"})
+            author = args.get("author")
+            media_id = args.get("media_id")
+            if (owner != _config(ctx, "owner_id", "") or _config(ctx, "rename_threads", False) is not True
+                    or not isinstance(media_id, str) or not re.fullmatch(r"[a-f0-9]{24}", media_id)
+                    or source["platform"] != "discord" or not all(source[k] for k in ("chat_id", "thread_id", "scope_id", "parent_chat_id"))
+                    or source["scope_id"] != _config(ctx, "guild_id", "")
+                    or source.get("parent_chat_id") != _config(ctx, "parent_channel_id", "")):
+                return json.dumps({"error": "captured owner source and naming consent required"})
+            from .sources import title_for_source
+            db = _db()
+            try:
+                receipt = db.execute("SELECT platform,source_url,chat_id,thread_id FROM receipts WHERE media_id=? AND owner_id=? AND guild_id=? AND parent_channel_id=? AND chat_id=? AND thread_id=? ORDER BY created_at,rowid LIMIT 1", (media_id, owner, _config(ctx, "guild_id", ""), _config(ctx, "parent_channel_id", ""), source.get("chat_id"), source.get("thread_id"))).fetchone()
+                if not receipt:
+                    return json.dumps({"error": "captured source thread not found"})
+                parsed = parse_source_url(receipt[1])
+                if not parsed or parsed.platform not in {"instagram", "youtube", "tiktok", "threads", "snapchat", "x", "reddit", "facebook", "vimeo", "bluesky"}:
+                    return json.dumps({"error": "captured source identity unavailable"})
+                title = title_for_source(parsed, author)
+                if not title:
+                    return json.dumps({"error": "valid source author required"})
+                db.execute("INSERT INTO thread_authors VALUES(?,?,?,?,?) ON CONFLICT(thread_id) DO UPDATE SET author=excluded.author,title=excluded.title,updated_at=excluded.updated_at WHERE thread_authors.media_id=excluded.media_id", (receipt[3], media_id, author.strip(), title, int(time.time())))
+                db.commit()
+                from .naming import rename_captured_thread
+                await rename_captured_thread(ctx, source, title, media_id, _db)
+                state_db = _db()
+                try:
+                    naming_state = state_db.execute("SELECT state,detail FROM thread_titles WHERE thread_id=? AND media_id=? AND title=?", (receipt[3], media_id, title)).fetchone()
+                finally:
+                    state_db.close()
+                if not naming_state:
+                    return json.dumps({"error": "thread naming not recorded; inspect item state"})
+                return json.dumps({"media_id": media_id, "title": title, "state": naming_state[0], "detail": naming_state[1], "acknowledgment_only": naming_state[0] == "acknowledged"})
+            except Exception:
+                return json.dumps({"error": "thread naming deferred; inspect item state"})
+            finally:
+                db.close()
+        return _handler(ctx, args, **kw)
+    ctx.register_tool(name="media_scout", toolset="media_scout", schema=schema, handler=native_handler, is_async=True)
