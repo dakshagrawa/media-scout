@@ -34,9 +34,33 @@ class Source:
     canonical_url: str
     title: str
     identity_quality: str
+    author: str | None = None
+    title_id: str | None = None
 
 
-def _title(platform: str, post_id: str, share: bool = False) -> str:
+def title_for_source(source: Source, author: str) -> str | None:
+    """One canonical provider_author_id renderer for URL and metadata authors."""
+    return author_title(source.platform, author, source.title_id or source.post_id)
+
+
+def author_title(platform: str, author: str, post_id: str) -> str | None:
+    if (not isinstance(author, str) or not author.strip() or len(author) > 256
+            or any(ord(c) < 32 or ord(c) == 127 for c in author)):
+        return None
+    safe = re.sub(r"[^A-Za-z0-9]+", "_", author.strip()).strip("_")[:48].rstrip("_")
+    if not safe:
+        return None
+    base = platform.lower() + "_" + safe + "_"
+    ident = re.sub(r"[^A-Za-z0-9_-]", "_", post_id)
+    room = 100 - len(base)
+    if len(ident) > room:
+        ident = ident[:room-13] + "_" + hashlib.sha256(post_id.encode("utf-8")).hexdigest()[:12]
+    return base + ident
+
+
+def _title(platform: str, post_id: str, share: bool = False, author: str | None = None) -> str:
+    if author:
+        return author_title(platform, author, post_id) or ""
     base = platform + ("_share_" if share else "_")
     safe = re.sub(r"[^A-Za-z0-9_-]", "_", post_id)
     room = 100 - len(base)
@@ -46,10 +70,12 @@ def _title(platform: str, post_id: str, share: bool = False) -> str:
     return base + safe[:room-len(suffix)] + suffix
 
 
-def _make(platform: str, post_id: str, original: str, canonical: str, *, share: bool = False) -> Source:
+def _make(platform: str, post_id: str, original: str, canonical: str, *, share: bool = False, author: str | None = None, title_id: str | None = None) -> Source:
     key = (platform + ":share:" + post_id) if share else (post_id if platform == "instagram" else platform + ":" + post_id)
-    return Source(platform, post_id, key, original, canonical, _title(platform, post_id, share),
-                  "share-link" if share else "canonical")
+    actual_title_id = title_id or post_id
+    interim = Source(platform, post_id, key, original, canonical, "", "share-link" if share else "canonical", author, actual_title_id)
+    return Source(platform, post_id, key, original, canonical, title_for_source(interim, author) if author else "",
+                  "share-link" if share else "canonical", author, actual_title_id)
 
 
 def _safe_parts(value: str):
@@ -116,7 +142,7 @@ def parse_source_url(value: str) -> Source | None:
         m = re.fullmatch(r"/@([A-Za-z0-9._-]{1,64})/(video|photo)/([0-9]{1,128})/?", path, re.ASCII)
         if m and _HANDLE.fullmatch(m.group(1)):
             pid = m.group(3)
-            return _make("tiktok", pid, value, f"https://www.tiktok.com/@{m.group(1)}/{m.group(2)}/{pid}")
+            return _make("tiktok", pid, value, f"https://www.tiktok.com/@{m.group(1)}/{m.group(2)}/{pid}", author=m.group(1))
         m = re.fullmatch(r"/t/([A-Za-z0-9_-]{1,128})/?", path, re.ASCII)
         if m: return _make("tiktok", m.group(1), value, f"https://www.tiktok.com/t/{m.group(1)}", share=True)
         return None
@@ -128,7 +154,7 @@ def parse_source_url(value: str) -> Source | None:
         m = re.fullmatch(r"/@([A-Za-z0-9._-]{1,64})/post/([A-Za-z0-9_-]{1,128})/?", path, re.ASCII)
         if m and _HANDLE.fullmatch(m.group(1)):
             pid = m.group(2)
-            return _make("threads", pid, value, "https://www.threads.com/@" + m.group(1) + "/post/" + m.group(2))
+            return _make("threads", pid, value, "https://www.threads.com/@" + m.group(1) + "/post/" + m.group(2), author=m.group(1))
         return None
     if host in {"snapchat.com", "www.snapchat.com"}:
         m = re.fullmatch(r"/spotlight/([A-Za-z0-9_-]{1,128})/?", path, re.ASCII)
@@ -139,7 +165,7 @@ def parse_source_url(value: str) -> Source | None:
 
     if host in {"x.com", "www.x.com", "mobile.x.com", "twitter.com", "www.twitter.com", "mobile.twitter.com"}:
         m = re.fullmatch(r"/(?:([A-Za-z0-9_]{1,15})|i)/status/([0-9]{1,128})/?", path, re.ASCII)
-        if m: return _make("x", m.group(2), value, "https://x.com/" + (m.group(1) or "i") + "/status/" + m.group(2))
+        if m: return _make("x", m.group(2), value, "https://x.com/" + (m.group(1) or "i") + "/status/" + m.group(2), author=m.group(1) if m.group(1) != "i" else None)
         return None
 
     if host in {"reddit.com", "www.reddit.com", "old.reddit.com", "new.reddit.com", "m.reddit.com"}:
@@ -176,7 +202,7 @@ def parse_source_url(value: str) -> Source | None:
         m = re.fullmatch(r"/profile/(did:plc:[A-Za-z0-9]{20,64}|[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251})\.[A-Za-z]{2,63})/post/([A-Za-z0-9]{1,128})/?", path, re.ASCII)
         if m:
             pid = m.group(1) + ":" + m.group(2)
-            return _make("bluesky", pid, value, "https://bsky.app/profile/" + m.group(1) + "/post/" + m.group(2))
+            return _make("bluesky", pid, value, "https://bsky.app/profile/" + m.group(1) + "/post/" + m.group(2), author=m.group(1), title_id=m.group(2))
         return None
     return None
 

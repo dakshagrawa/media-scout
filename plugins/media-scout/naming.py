@@ -9,12 +9,21 @@ async def rename_captured_thread(ctx, source, title, media_id, db_factory):
     """Naming failure never invalidates a captured source or blocks its review."""
     if ctx.get_config("rename_threads", False) is not True:
         return
-    if not isinstance(title, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", title):
-        return
     if (not isinstance(source, dict) or source.get("platform") != "discord"
             or source.get("user_id") != ctx.get_config("owner_id", "")
             or source.get("scope_id", source.get("guild_id")) != ctx.get_config("guild_id", "")
             or source.get("parent_chat_id") != ctx.get_config("parent_channel_id", "")):
+        return
+    if title is None:
+        db = db_factory()
+        try:
+            receipt = db.execute("SELECT 1 FROM receipts WHERE thread_id=? AND media_id=? AND owner_id=? AND guild_id=? AND parent_channel_id=? AND chat_id=?", (source.get("thread_id"), media_id, source["user_id"], ctx.get_config("guild_id", ""), source["parent_chat_id"], source.get("chat_id"))).fetchone()
+            if receipt:
+                db.execute("INSERT OR IGNORE INTO thread_titles VALUES(?,?,?,'deferred','source author unknown')", (source["thread_id"], media_id, "")); db.commit()
+        finally:
+            db.close()
+        return
+    if not isinstance(title, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", title):
         return
     thread, chat = source.get("thread_id"), source.get("chat_id")
     if not isinstance(thread, str) or not thread or not isinstance(chat, str) or not chat:
