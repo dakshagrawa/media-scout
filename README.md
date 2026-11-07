@@ -2,9 +2,13 @@
 
 Media Scout is a native Hermes plugin and companion workflow for turning an authorized social-media submission into source-backed evidence and a review task. This repository contains the plugin, portable workflow templates, a supporting evidence skill, and an optional upstream patch. It does not contain a media acquisition engine or a hosted service.
 
-The project was split from [dakshagrawa/hermes-workflows](https://github.com/dakshagrawa/hermes-workflows), which continues as the home of the existing `production-web-checklist` skill. This standalone repository is `dakshagrawa/media-scout`; its filtered Git history has different commit IDs, not replacement authorship. Original contributors and dates are preserved, and package release tags needed by upgrade tests remain available. See [migration notes](MIGRATION.md) for provenance and deployment boundaries.
+The project was split from [dakshagrawa/production-checklist](https://github.com/dakshagrawa/production-checklist) (formerly `hermes-workflows` / `production-web-checklist`), which hosts software production-readiness skills and retains the existing `production-web-checklist` package. This standalone repository is `dakshagrawa/media-scout`; its filtered Git history has different commit IDs, not replacement authorship. Original contributors and dates are preserved, and package release tags needed by upgrade tests remain available. See [migration notes](MIGRATION.md) for provenance and deployment boundaries.
 
 **Status: experimental, not production-ready.** Offline contracts and synthetic native SDK qualification do not establish live per-platform extraction or end-to-end Discord/provider reliability. Review [qualification](plugins/media-scout/QUALIFICATION.md) before installation.
+
+## Version-one setup snapshots
+
+The `version-one` branch and `media-scout-setup-v1.0.0` release preserve the sanitized **instruction-driven deployment**, including local skills, project-fit review, issue/PR templates, policies and recovery documentation. This PR advances the bundled setup to **1.0.1**, documenting local routing/output/contribution changes and `media-to-github` 0.2.0. The 1.0.0 archive remains immutable. Start at [snapshot-v1/README.md](snapshot-v1/README.md) and [1.0.1 changes](snapshot-v1/CHANGES-1.0.1.md). This is separate from the experimental native plugin below; public templates are not consent to activate connections, forwarding or deletion. No private backup is published.
 
 ## Start here
 
@@ -13,6 +17,7 @@ The project was split from [dakshagrawa/hermes-workflows](https://github.com/dak
 - [Acceptance criteria](workflows/media-scout/acceptance.md)
 - [Contribution guidelines](CONTRIBUTING.md) and [security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
+- [Inactive Agent Reach fallback archive](archive/agent-reach/README.md) — pinned original instructions, not installed or automatically activated.
 
 The plugin at `plugins/media-scout` is the native executable extension. It handles trusted intake bookkeeping, extraction claims, bounded evidence persistence, native reviewer handoff and separately opted-in retention. Hermes's admitted tools perform acquisition/transcription/vision; a reviewer uses its own authorized profile context. The workflow documents how to configure the native roles and features. The top-level `media-evidence-library` remains a separately reviewable instruction skill. The optional patch under `patches/media-thread-naming` is not required or automatically applied.
 

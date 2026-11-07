@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "catalog_format": "one_json_record_per_media_id",
+  "evidence_retention_days": 90,
+  "evidence_retention_basis": "last_explicit_user_revisit_at_or_extracted_at",
+  "media_cache_retention_days": 7,
+  "pinned_items_exempt": true,
+  "active_extraction_or_review_exempt": true,
+  "cleanup_mode": "delete-expired",
+  "automatic_catalog_expiry": false,
+  "automatic_forwarding": true,
+  "automatic_installation": false,
+  "transcription": "local-cpu-small-whisper",
+  "watch_video_admission": "blocked-by-native-security-scan; do-not-run",
+  "concurrency_guarantee": "best-effort instructions, not transactional locking",
+  "automatic_forwarding_scope": "new-owner-submissions-review-only; review-policy.md",
+  "stable_version": "1.0",
+  "cleanup_max_records": 100,
+  "cleanup_max_files": 100,
+  "cleanup_max_bytes": 52428800,
+  "cleanup_procedure": "skills/media/media-evidence-library/references/retention-cleanup.md"
+}

@@ -66,7 +66,7 @@ class Fake:
         if " notify-list " in command:
             return json.dumps({"output": json.dumps(self.subscriptions), "exit_code": 0, "error": None})
         if " show " in command:
-            return json.dumps({"output": json.dumps({"task": self.task, "events": [{"kind": "created", "payload": {"status": "blocked"}}, {"kind": "blocked", "payload": {"reason": "initial_status"}}], "runs": [], "comments": []}), "exit_code": 0, "error": None})
+            return json.dumps({"output": json.dumps({"task": self.task, "latest_summary": self.task.get("latest_summary"), "events": self.task.get("events", [{"kind": "created", "payload": {"status": "blocked"}}, {"kind": "blocked", "payload": {"reason": "initial_status"}}]), "runs": self.task.get("runs", []), "comments": []}), "exit_code": 0, "error": None})
         if " unblock " in command:
             self.task["status"] = "ready"
             return json.dumps({"output": "Unblocked t_12345678", "exit_code": 0, "error": None})
@@ -81,7 +81,7 @@ def test_native_review_protocol_is_create_verify_then_unblock(tmp_path):
     assert result["task_id"] == "t_12345678" and result["status"] == "ready"
     commands = [call[0]["command"] for call in ctx.calls]
     verbs = [shlex.split(c)[shlex.split(c).index("kanban") + 3] for c in commands]
-    assert verbs == ["create", "notify-list", "notify-subscribe", "notify-list", "show", "unblock", "show"]
+    assert verbs == ["create", "notify-list", "notify-subscribe", "notify-list", "notify-list", "show", "unblock", "show"]
     assert "--initial-status blocked" in commands[0]
     assert "notify+wake" in commands[2]
     assert all("HERMES_HOME=" in c and "-u HERMES_KANBAN_DB" in c and "-u HERMES_KANBAN_BOARD" in c for c in commands)
@@ -172,6 +172,17 @@ def test_conflicting_subscription_fails_closed_without_retarget(tmp_path):
     assert not any("notify-subscribe" in call[0]["command"] or " unblock " in call[0]["command"] for call in ctx.calls)
 
 
+def test_duplicate_matching_subscription_never_releases(tmp_path):
+    mod = load(); ctx = Fake()
+    bridge = mod.NativeBridge(ctx, tmp_path, "media-review", "reviewer")
+    first = bridge.ensure_review(KEY, ORIGIN, BODY, allow_release=False)
+    ctx.subscriptions.append(dict(ctx.subscriptions[0]))
+    ctx.calls.clear()
+    result = bridge.ensure_review(KEY, ORIGIN, BODY, task_id=first["task_id"], allow_release=lambda: True)
+    assert result.get("error") and result["task_id"] == first["task_id"]
+    assert not any(" unblock " in call[0]["command"] for call in ctx.calls)
+
+
 def test_malformed_terminal_json_is_not_success(tmp_path):
     mod = load()
     class Broken:
@@ -186,9 +197,59 @@ def test_status_reads_current_native_task_json(tmp_path):
     mod = load()
     ctx = Fake()
     ctx.task = {"id": "t_12345678", "status": "done", "assignee": "reviewer", "body": BODY, "idempotency_key": KEY}
-    result = mod.NativeBridge(ctx, tmp_path, "media-review", "reviewer").status("t_12345678")
+    result = mod.NativeBridge(ctx, tmp_path, "media-review", "reviewer").status("t_12345678", ORIGIN)
     assert result["task_id"] == "t_12345678" and result["status"] == "done"
-    assert len(ctx.calls) == 1 and "show t_12345678 --json" in ctx.calls[0][0]["command"]
+    assert result["review_verification"] == "unverified"
+    assert len(ctx.calls) == 2 and "show t_12345678 --json" in ctx.calls[0][0]["command"]
+
+
+def test_status_requires_observed_successful_assigned_run_and_matching_handoff(tmp_path):
+    mod = load(); ctx = Fake()
+    ctx.task = {"id": "t_12345678", "status": "done", "assignee": "reviewer", "body": BODY, "idempotency_key": KEY}
+    run = {"id": 41, "profile": "reviewer", "status": "done", "outcome": "completed", "summary": "Reviewed source evidence.", "started_at": 100, "ended_at": 123}
+    ctx.task.update(runs=[run], latest_summary=run["summary"], events=[{"kind": "completed", "run_id": 41}])
+    ctx.subscriptions = [{"task_id": "t_12345678", "platform": "discord", "chat_type": "group", "chat_id": "chat-7", "thread_id": "thread-9", "user_id": "user-2", "notifier_profile": "default", "delivery_mode": "notify+wake", "delivery_metadata": {"parent_chat_id": "parent-8", "guild_id": "guild-3"}}]
+    result = mod.NativeBridge(ctx, tmp_path, "media-review", "reviewer").status("t_12345678", ORIGIN)
+    assert result["review_verification"] == "verified"
+    assert result["task"]["latest_summary"] == "Reviewed source evidence."
+
+
+@pytest.mark.parametrize("change", ["missing_completion_event", "mismatched_completion_event", "latest_summary_mismatch"])
+def test_completion_proof_must_match_qualifying_run(tmp_path, change):
+    mod = load(); ctx = Fake()
+    run = {"id": 41, "profile": "reviewer", "status": "done", "outcome": "completed", "summary": "Reviewed source evidence.", "started_at": 100, "ended_at": 123}
+    events = [{"kind": "completed", "run_id": 41}]
+    latest = run["summary"]
+    if change == "missing_completion_event": events = []
+    if change == "mismatched_completion_event": events = [{"kind": "completed", "run_id": 42}]
+    if change == "latest_summary_mismatch": latest = "Another run's summary."
+    ctx.task = {"id": "t_12345678", "status": "done", "assignee": "reviewer", "body": BODY, "runs": [run], "events": events, "latest_summary": latest}
+    ctx.subscriptions = [{"task_id": "t_12345678", "platform": "discord", "chat_type": "group", "chat_id": "chat-7", "thread_id": "thread-9", "user_id": "user-2", "notifier_profile": "default", "delivery_mode": "notify+wake", "delivery_metadata": {"parent_chat_id": "parent-8", "guild_id": "guild-3"}}]
+    result = mod.NativeBridge(ctx, tmp_path, "media-review", "reviewer").status("t_12345678", ORIGIN)
+    assert result["review_verification"] == "unverified"
+
+
+@pytest.mark.parametrize("extra", [
+    {"id": 42, "profile": "operator", "status": "done", "outcome": "completed", "summary": "operator", "ended_at": 124},
+    {"id": 42, "profile": "reviewer", "status": "done", "outcome": "completed", "summary": "", "ended_at": 124},
+    {"id": 42, "profile": "reviewer", "status": "done", "outcome": "completed", "summary": "operator completion", "started_at": 124, "ended_at": 124},
+])
+def test_foreign_or_malformed_run_never_verifies(tmp_path, extra):
+    mod = load(); ctx = Fake()
+    ctx.task = {"id": "t_12345678", "status": "done", "assignee": "reviewer", "body": BODY, "runs": [extra], "events": [{"kind": "completed", "run_id": extra["id"]}], "latest_summary": extra["summary"]}
+    ctx.subscriptions = [{"task_id": "t_12345678", "platform": "discord", "chat_type": "group", "chat_id": "chat-7", "thread_id": "thread-9", "user_id": "user-2", "notifier_profile": "default", "delivery_mode": "notify+wake", "delivery_metadata": {"parent_chat_id": "parent-8", "guild_id": "guild-3"}}]
+    result = mod.NativeBridge(ctx, tmp_path, "media-review", "reviewer").status("t_12345678", ORIGIN)
+    assert result["review_verification"] == "unverified"
+
+
+@pytest.mark.parametrize("subs", [
+    [],
+    [{"task_id": "t_12345678", "platform": "discord", "chat_id": "chat-7", "thread_id": "thread-9", "user_id": "user-2", "notifier_profile": "default", "delivery_mode": "notify+wake", "chat_type": "group", "delivery_metadata": {"parent_chat_id": "parent-8", "guild_id": "guild-3"}}, {"task_id": "t_12345678", "platform": "discord", "chat_id": "other", "delivery_mode": "notify+wake"}],
+])
+def test_subscription_mismatch_or_duplicates_do_not_verify(tmp_path, subs):
+    mod = load(); ctx = Fake(); ctx.task = {"id": "t_12345678", "status": "done"}; ctx.subscriptions = subs
+    result = mod.NativeBridge(ctx, tmp_path, "media-review", "reviewer").status("t_12345678", ORIGIN)
+    assert result.get("review_verification") == "unverified" or result.get("error")
 
 
 def test_packet_root_symlink_is_rejected_before_dispatch(tmp_path):

@@ -1,0 +1,4 @@
+ARCHIVAL, NON-EXECUTABLE REFERENCE ONLY. Native stt.provider is disabled in config.example.yaml.
+The source command is preserved to describe intent; shell/argument quoting and native placeholder handling MUST be qualified on the selected Hermes release before configuring any provider. Do not execute this file.
+
+/usr/bin/env HF_HOME=$HERMES_HOME/runtime/huggingface $HERMES_HOME/runtime/media/bin/whisper-ctranslate2 {input_path} --model small --model_dir $HERMES_HOME/runtime/models --local_files_only True --device cpu --compute_type int8 --threads 2 --language {language} --output_dir {output_dir} --output_format srt --verbose False && /usr/bin/cp {output_dir}/*.srt {output_path}

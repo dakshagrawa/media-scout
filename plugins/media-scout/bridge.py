@@ -193,6 +193,11 @@ class NativeBridge:
         return result
 
     @staticmethod
+    def _verify_subscription_set(subs: list, task_id: str, origin: dict, profile: str) -> bool:
+        # A matching row does not make additional or ambiguous routes safe.
+        return len(subs) == 1 and NativeBridge._matches_subscription(subs[0], task_id, origin, profile)
+
+    @staticmethod
     def _matches_subscription(sub: dict, task_id: str, origin: dict, profile: str) -> bool:
         metadata = sub.get("delivery_metadata") if isinstance(sub.get("delivery_metadata"), dict) else {}
         return (sub.get("task_id") == task_id and sub.get("platform") == "discord"
@@ -228,10 +233,9 @@ class NativeBridge:
 
             profile = self._profile()
             subs = self._subscriptions(committed_id)
-            matching = [s for s in subs if self._matches_subscription(s, committed_id, source, profile)]
-            if subs and not matching:
+            if subs and not self._verify_subscription_set(subs, committed_id, source, profile):
                 raise BridgeError("task already has a conflicting native source subscription", committed_id)
-            if not matching:
+            if not subs:
                 subscribe = (
                     f"{self._base()} notify-subscribe {shlex.quote(committed_id)} "
                     f"--platform discord --chat-id {shlex.quote(source['chat_id'])} "
@@ -244,9 +248,12 @@ class NativeBridge:
                 )
                 self._dispatch(subscribe)
                 subs = self._subscriptions(committed_id)
-                matching = [s for s in subs if self._matches_subscription(s, committed_id, source, profile)]
-                if len(matching) != 1:
+                if not self._verify_subscription_set(subs, committed_id, source, profile):
                     raise BridgeError("native source subscription could not be verified", committed_id)
+
+            # Revalidate the exact immutable route immediately before considering release.
+            if not self._verify_subscription_set(self._subscriptions(committed_id), committed_id, source, profile):
+                raise BridgeError("native source subscription changed before release", committed_id)
 
             task = self._verify_task(self._show(committed_id), key, self.assignee, marked_body, committed_id)
             status = task["status"]
@@ -270,7 +277,7 @@ class NativeBridge:
                 except OSError:
                     pass
 
-    def status(self, task_id: str) -> dict:
+    def status(self, task_id: str, origin: dict | None = None) -> dict:
         try:
             if not isinstance(task_id, str) or not _TOKEN.fullmatch(task_id):
                 return {"error": "invalid task ID"}
@@ -278,6 +285,19 @@ class NativeBridge:
             status = task.get("status")
             if status not in {"triage", "todo", "blocked", "ready", "running", "review", "done", "archived", "failed", "cancelled"}:
                 return {"error": "native task state was missing or unknown", "task_id": task_id}
-            return {"task_id": task_id, "status": status, "task": task}
+            if origin is None:
+                return {"task_id": task_id, "status": status, "task": task, "review_verification": "unverified", "review_verification_reason": "persisted review origin unavailable"}
+            source = self._validate_origin(origin)
+            subs = self._subscriptions(task_id)
+            if not self._verify_subscription_set(subs, task_id, source, self._profile()):
+                return {"task_id": task_id, "status": status, "task": task, "error": "native review subscription mismatch; result not accepted", "review_verification": "unverified"}
+            run = next((r for r in reversed(task.get("runs") or []) if isinstance(r, dict) and r.get("outcome") == "completed" and r.get("status") == "done" and r.get("profile") == self.assignee and isinstance(r.get("id"), int) and isinstance(r.get("started_at"), int) and isinstance(r.get("ended_at"), int) and r["ended_at"] > r["started_at"] and isinstance(r.get("summary"), str) and r["summary"].strip()), None)
+            events = task.get("events") or []
+            handed_off = run is not None and any(isinstance(e, dict) and e.get("kind") == "completed" and e.get("run_id") == run["id"] for e in events)
+            summary = task.get("latest_summary")
+            verified = bool(status in {"done", "archived"} and handed_off and summary == run["summary"])
+            return {"task_id": task_id, "status": status, "task": task,
+                    "review_verification": "verified" if verified else "unverified",
+                    "review_verification_reason": "assigned reviewer run and native handoff verified" if verified else "no matching successful assigned-profile reviewer run and handoff"}
         except BridgeError as exc:
             return {"error": str(exc), **({"task_id": exc.task_id or task_id} if exc.task_id or task_id else {})}

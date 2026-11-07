@@ -2,6 +2,8 @@
 
 The plugin is a bookkeeping and handoff extension, not an extraction engine. It installs no media tools, model weights, browser sessions or credentials. Use native/admitted upstream capabilities already available to the operator; disclose missing prerequisites and their costs before proposing installation.
 
+Read [public-first retrieval and bounded recovery](retrieval-routing.md) when choosing acquisition tools, validating returned content or handling access failures. This is instruction-only guidance, not a new extractor dependency.
+
 ## A video or reel
 
 1. Preserve the exact submitted URL and any meaningful slide or timestamp context; use canonical identity for deduplication only.
@@ -17,6 +19,8 @@ Keep original order; inspect each available image using actual vision/OCR tools.
 ## Evidence shape
 
 Include original/canonical source, acquisition method, actual artifact references, audio/visual coverage, relevant timestamps or slide order, creator claims versus verified facts, substantive observations and limitations. Save only existing contained cache artifacts through the registered-asset interface if available. A screenshot/contact sheet and source excerpt must be real, not fabricated fixtures passed off as media.
+
+In a native `media_scout` save call, `evidence.audio`, `evidence.visual` and `evidence.pictures` are nonnegative integer counts (0–500), not nested descriptions. Put actual findings in `observations`, captured post text in `text_content`, and gaps/access explanations in `limitations` or `audio_unavailable_reason`. Copy the exact `media_id` from `status`/`get` and exact `claim_token` from `claim`; a source identifier and platform thread title are not interchangeable with the captured ID. Keep any cached real transcript and state partial coverage honestly. The complete illustrative direct-call syntax is in the [workflow](../SKILL.md); its placeholder observations must never be saved as source evidence.
 
 ## Runtime boundaries
 

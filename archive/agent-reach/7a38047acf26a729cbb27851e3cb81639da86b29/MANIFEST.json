@@ -1,0 +1,57 @@
+{
+  "source": "https://github.com/Panniantong/Agent-Reach",
+  "revision": "7a38047acf26a729cbb27851e3cb81639da86b29",
+  "purpose": "Inactive manual fallback reference; not installed, not executable qualification",
+  "files": [
+    {
+      "path": "agent_reach/skill/SKILL.md",
+      "sha256": "86f6bd3d377f30ec553e8fdac801fc41fe3eda3e0a9a2aa7690d5adb30e8ad7e",
+      "git_blob": "b16129cccb2bb0a79339f923b4dceb2e108622f4",
+      "bytes": 7119
+    },
+    {
+      "path": "agent_reach/skill/SKILL_en.md",
+      "sha256": "b6f00572f0aec469b0d43e845283650362f71ab184565fe103ef7dc90106ac96",
+      "git_blob": "21efcd59a0059683bcdedd531515eafd87822363",
+      "bytes": 7855
+    },
+    {
+      "path": "agent_reach/skill/references/capabilities.md",
+      "sha256": "36105d4686493e67eb2f6d7cb47479e06bef6fbfe7159f08d3a6b64314b1cd79",
+      "git_blob": "024b78ea286936e5452babdec3687cd9e622ba9b",
+      "bytes": 3431
+    },
+    {
+      "path": "agent_reach/skill/references/maintenance.md",
+      "sha256": "316585c8837f3e12fd88cb1769cf9b00eed9c83c2fc70f46a6dcb791012121e1",
+      "git_blob": "954ba111091576ff2dcc333bc5fefbb850a6ead0",
+      "bytes": 1621
+    },
+    {
+      "path": "agent_reach/skill/references/sessions.md",
+      "sha256": "2b15b340db21838680659b4694a419f6799036e49ddb4b8042e7b893a4dbadd3",
+      "git_blob": "97a97d8e4839d7b0cf6c027db413d5a1cfe79e0a",
+      "bytes": 3870
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "e94c131ac1c2f78cfd8f7e69da354c0ff58e4e54071697703d56856c036de402",
+      "git_blob": "85cfac9168cbcc87f55dc3939311e7f612e5c648",
+      "bytes": 1067
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "d9cb92ece02661bc24e87a1405924fbb9166abe5516ac1f78f06cef9598fe6b0",
+      "git_blob": "1b0495c1640529556620b176b0e249bffc8990e2",
+      "bytes": 1984
+    },
+    {
+      "path": "docs/README_en.md",
+      "sha256": "70b7a093307eb5325ef4638f90f8ad4697f35257b865c31ad7a7e28756a99f5c",
+      "git_blob": "0d3be4396b908b20e9061a123eff56690e876118",
+      "bytes": 16227
+    }
+  ],
+  "scope": "Complete upstream agent_reach/skill directory plus license, dependency metadata and English README; not the application runtime",
+  "activation": "Separate source/security review, dependency and access approval, isolated testing required; no browser-session copying or automatic failover authorized."
+}

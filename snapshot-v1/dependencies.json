@@ -1,0 +1,143 @@
+{
+  "hermes_version": "0.22.7",
+  "hermes_revision": "b200f5bc60e3",
+  "python_runtime": "3.14.9",
+  "media_python_distributions": [
+    {
+      "name": "anyio",
+      "version": "4.15.1"
+    },
+    {
+      "name": "av",
+      "version": "18.1.0"
+    },
+    {
+      "name": "certifi",
+      "version": "2026.10.23"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2"
+    },
+    {
+      "name": "click",
+      "version": "8.5.0"
+    },
+    {
+      "name": "ctranslate2",
+      "version": "4.8.4"
+    },
+    {
+      "name": "faster-whisper",
+      "version": "1.2.1"
+    },
+    {
+      "name": "filelock",
+      "version": "4.2.5"
+    },
+    {
+      "name": "flatbuffers",
+      "version": "25.12.19"
+    },
+    {
+      "name": "fsspec",
+      "version": "2026.9.0"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0"
+    },
+    {
+      "name": "hf-xet",
+      "version": "1.8.0"
+    },
+    {
+      "name": "httpcore2",
+      "version": "2.16.0"
+    },
+    {
+      "name": "httpx2",
+      "version": "2.16.0"
+    },
+    {
+      "name": "huggingface_hub",
+      "version": "2.4.0"
+    },
+    {
+      "name": "idna",
+      "version": "3.20"
+    },
+    {
+      "name": "numpy",
+      "version": "2.5.4"
+    },
+    {
+      "name": "onnxruntime",
+      "version": "1.31.1"
+    },
+    {
+      "name": "packaging",
+      "version": "26.3"
+    },
+    {
+      "name": "pillow",
+      "version": "13.0.0"
+    },
+    {
+      "name": "protobuf",
+      "version": "7.36.2"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.12"
+    },
+    {
+      "name": "PyYAML",
+      "version": "6.0.3"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2"
+    },
+    {
+      "name": "sounddevice",
+      "version": "0.5.6"
+    },
+    {
+      "name": "tokenizers",
+      "version": "0.23.3"
+    },
+    {
+      "name": "tqdm",
+      "version": "4.70.1"
+    },
+    {
+      "name": "truststore",
+      "version": "0.10.5"
+    },
+    {
+      "name": "typing_extensions",
+      "version": "4.16.0"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0"
+    },
+    {
+      "name": "whisper-ctranslate2",
+      "version": "0.5.8"
+    }
+  ],
+  "blocked_packages": [
+    "watch-video"
+  ],
+  "notes": [
+    "Version inventory is not a cross-platform lockfile or redistribution of model binaries.",
+    "Re-admit third-party tools under native policy; never execute blocked packages.",
+    "The native Media Scout plugin shipped in this repo is NOT installed in the captured instruction-only deployment."
+  ]
+}

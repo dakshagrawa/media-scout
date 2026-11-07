@@ -2,8 +2,21 @@ import concurrent.futures
 import hashlib
 import json
 import sqlite3
+import pytest
 
 from test_media_scout_core import load_module
+
+
+def test_owner_submission_intent_suppresses_automatic_review(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    for text in (
+        "keep this local", "don’t share this", "do not share this",
+        "don't send this to Default", "not for review", "dont share this",
+        "keep this private", "don’t show this to anyone", "keep it confidential", "for my eyes only",
+    ):
+        assert mod._owner_intent_overrides_review(text), text
+    for text in ("https://example.com/keep-this-local", "please review this", "share with my team"):
+        assert not mod._owner_intent_overrides_review(text), text
 
 
 def fixture_record(mod, tmp_path):
@@ -87,6 +100,63 @@ def test_evidence_details_are_bounded_before_writing(monkeypatch, tmp_path):
     db.close()
 
 
+def test_item_action_missing_or_invalid_media_id_is_actionable_and_no_write(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    settings = {"owner_id": "owner", "guild_id": "7", "parent_channel_id": "8"}
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default))
+    gateway = types.ModuleType("gateway.session_context")
+    gateway.get_session_env = lambda name, default="": "owner"
+    monkeypatch.setitem(__import__("sys").modules, "gateway.session_context", gateway)
+    monkeypatch.setattr(mod, "_db", lambda: pytest.fail("invalid identity must not open storage"))
+    for action, media_id in (("save", None), ("claim", "instagram_shortcode"), ("review", "")):
+        args = {"action": action}
+        if media_id is not None:
+            args["media_id"] = media_id
+        result = json.loads(mod._handler(ctx, args))
+        assert "captured media_id" in result["error"]
+        assert "status or get" in result["error"]
+        assert "identity" not in result["error"] or "captured" in result["error"]
+    gateway.get_session_env = lambda name, default="": "intruder"
+    assert "owner identity required" in mod._handler(ctx, {"action": "save"})
+
+
+def test_evidence_counts_reject_descriptive_objects_with_field_guidance(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    ev = observed(); ev["audio"] = {"transcript": "descriptive data"}
+    result = mod.save_evidence(db, media, token, "summary", ev, "partial")
+    assert "audio" in result["error"] and "nonnegative integer" in result["error"]
+    assert mod.get_item(db, media)["claim_state"] == "running"
+    db.close()
+
+
+def test_declared_evidence_schema_matches_canonical_and_rejects_malformed_counts(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    registered = {}
+    ctx = types.SimpleNamespace(register_skill=lambda *a: None, register_hook=lambda *a: None,
+        register_command=lambda *a, **k: None, register_tool=lambda **kw: registered.update(kw))
+    mod.register(ctx)
+    schema = registered["schema"]["parameters"]["properties"]["evidence"]
+    assert set(schema["required"]) == {"audio", "visual", "pictures", "times", "observations"}
+    assert schema["properties"]["kind"]["enum"] == ["video", "image", "carousel", "text", "mixed"]
+    for field in ("audio", "visual", "pictures"):
+        assert schema["properties"][field]["type"] == "integer"
+        assert schema["properties"][field]["minimum"] == 0
+        assert schema["properties"][field]["maximum"] == 500
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    canonical = observed()
+    assert mod.save_evidence(db, media, token, "Illustrative synthetic fixture", canonical, "partial")["saved"]
+    media2 = mod.capture_receipt(db, "m2", {"platform": "discord", "user_id": "owner", "chat_id": "43", "thread_id": "43", "guild_id": "7", "parent_chat_id": "8", "session_key": "discord:fixture"}, "https://instagram.com/p/XyZ678")["media_id"]
+    token2 = mod.claim(db, media2, "owner")["claim_token"]
+    bad = dict(canonical, visual={"frames": 2})
+    assert "visual" in mod.save_evidence(db, media2, token2, "Illustrative synthetic fixture", bad, "partial")["error"]
+    db.close()
+
+
 def test_owner_change_cannot_release_previous_owners_claim(monkeypatch, tmp_path):
     import types
     mod = load_module(monkeypatch, tmp_path)
@@ -116,6 +186,31 @@ def test_native_capture_accepts_only_owner_scope_and_preserves_original_receipt(
     assert db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0] == 1
     assert db.execute("SELECT source_url,session_key,chat_type FROM receipts").fetchone() == ("https://instagram.com/reel/AbC123/?img_index=2", "discord:fixture", "group")
     db.close()
+
+
+def test_cleared_owner_dormants_registered_capture_and_tool_before_storage(monkeypatch, tmp_path):
+    import asyncio
+    import sys
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    settings = {"owner_id": "owner", "guild_id": "7", "parent_channel_id": "8"}
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default))
+    source = {"platform": "discord", "user_id": "owner", "chat_id": "99", "thread_id": "99", "scope_id": "7", "parent_chat_id": "8", "chat_type": "group"}
+    payload = dict(platform="discord", source=source, session_key="discord:fixture", message_id="m1", text="https://instagram.com/reel/AbC123/")
+    assert mod._capture(ctx, **payload)
+    settings["owner_id"] = ""
+    monkeypatch.setattr(mod, "_db", lambda: pytest.fail("dormant intake opened storage"))
+    different = {**payload, "message_id": "m2", "text": "https://youtube.com/watch?v=AbCdEf12345"}
+    assert mod._capture(ctx, **different) is None
+    asyncio.run(mod._admission(ctx, **different))
+    gateway = types.ModuleType("gateway")
+    session_context = types.ModuleType("gateway.session_context")
+    session_context.get_session_env = lambda *args: "owner"
+    monkeypatch.setitem(sys.modules, "gateway", gateway)
+    monkeypatch.setitem(sys.modules, "gateway.session_context", session_context)
+    for action in ("claim", "review", "review_status", "cleanup_apply"):
+        result = json.loads(mod._handler(ctx, {"action": action, "media_id": "a" * 24, "plan_id": "plan"}))
+        assert "error" in result
 
 
 def test_complete_text_post_requires_real_text_basis_and_no_missing_media(monkeypatch, tmp_path):
@@ -195,4 +290,43 @@ def test_complete_text_requires_bounded_retained_segments_not_just_a_count(monke
         assert "error" in mod.save_evidence(db, media, token, "Synthetic text", evidence, "complete"), invalid
     evidence = dict(base, text_content=["SYNTHETIC captured source text, not real creator material."])
     assert mod.save_evidence(db, media, token, "Synthetic text", evidence, "complete")["saved"]
+    db.close()
+
+
+def test_optional_intake_thread_scope_leaves_other_threads_untouched(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    settings = {"owner_id": "owner", "guild_id": "7", "parent_channel_id": "8", "intake_thread_id": "101"}
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default))
+    source = {"platform": "discord", "user_id": "owner", "scope_id": "7", "parent_chat_id": "8", "chat_type": "group"}
+    def capture(thread, message, url):
+        return mod._capture(ctx, platform="discord", source=dict(source, chat_id=thread, thread_id=thread), session_key="discord:fixture:" + thread, message_id=message, text=url)
+    assert capture("102", "not-pilot", "https://youtu.be/AbCdEf12345") is None
+    accepted = capture("101", "pilot", "https://youtu.be/AbCdEf12345")
+    assert accepted
+    db = mod._db()
+    assert db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0] == 1
+    assert db.execute("SELECT thread_id FROM receipts").fetchone()[0] == "101"
+    db.close()
+
+
+def test_review_opt_out_never_dispatches_or_creates_review_rows(monkeypatch, tmp_path):
+    import types
+    mod = load_module(monkeypatch, tmp_path)
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    assert mod.save_evidence(db, media, token, "Synthetic test only", observed(), "partial")["saved"]
+    settings = {"owner_id": "owner", "auto_review": True, "review_policy_reference": "synthetic authorized fixture"}
+    calls = []
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default), dispatch_tool=lambda *a, **kw: calls.append((a, kw)))
+    import importlib
+    assert isinstance(mod.__package__, str)
+    bridge = importlib.import_module(mod.__package__ + ".bridge")
+    monkeypatch.setattr(bridge.shutil, "which", lambda name: "/usr/bin/hermes")
+    for phrase in ("keep this local", "don’t share this", "do not share this", "don't send this to Default", "not for review", "keep this private", "don’t show this to anyone", "keep it confidential", "for my eyes only"):
+        db.execute("UPDATE receipts SET source_text=?", (phrase + " https://instagram.com/p/AbC123",)); db.commit()
+        result = mod._review(ctx, db, media)
+        assert result["error"] == "owner source overrides automatic review"
+        assert db.execute("SELECT COUNT(*) FROM reviews").fetchone()[0] == 0
+    assert calls == []
     db.close()
