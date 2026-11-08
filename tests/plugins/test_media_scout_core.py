@@ -3,6 +3,8 @@ import importlib.util
 import sqlite3
 import sys
 import types
+import asyncio
+import json
 
 MODULE = Path(__file__).parents[2] / "plugins" / "media-scout" / "__init__.py"
 
@@ -28,6 +30,80 @@ def test_reel_identity_preserves_case_and_functional_query(monkeypatch, tmp_path
     parsed = mod.parse_instagram_url("https://www.instagram.com/p/AbC123/?img_index=2&utm_source=x#frame")
     assert parsed == ("AbC123", "https://www.instagram.com/p/AbC123/?img_index=2&utm_source=x#frame")
     assert mod.canonical_identity("https://instagram.com/p/AbC123/?img_index=2&utm_source=x") == "AbC123"
+
+
+def test_registered_async_name_action_uses_captured_source_and_facade(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    path = tmp_path / "plugin-data" / "media-scout" / "data.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path)
+    mod.initialize(db)
+    source = {"platform": "discord", "user_id": "owner", "scope_id": "guild", "guild_id": "guild",
+              "parent_chat_id": "parent", "chat_id": "thread", "thread_id": "thread"}
+    receipt = mod.capture_receipt(db, "message", source, "https://bsky.app/profile/alexbenzer.com/post/3mysmixc7hs2k")
+    db.execute("UPDATE media SET summary='saved summary',evidence_hash='evidence-hash',claim_token='claim-token',claim_state='done',review_task_id='task-id' WHERE media_id=?", (receipt["media_id"],))
+    db.commit()
+    db.close()
+
+    monkeypatch.setattr(mod, "_db", lambda: sqlite3.connect(path))
+    session = types.ModuleType("gateway.session_context")
+    session_values = {"HERMES_SESSION_USER_ID":"owner", "HERMES_SESSION_PLATFORM":"discord",
+                      "HERMES_SESSION_CHAT_ID":"thread", "HERMES_SESSION_THREAD_ID":"thread",
+                      "HERMES_SESSION_SCOPE_ID":"guild", "HERMES_SESSION_PARENT_CHAT_ID":"parent"}
+    session.get_session_env = lambda name, default="": session_values.get(name, default)
+    monkeypatch.setitem(sys.modules, "gateway.session_context", session)
+    calls = []
+    facade_result = {"ok": False, "error": "capability_not_granted"}
+    async def set_title(platform, chat, thread, title):
+        calls.append((platform, chat, thread, title))
+        return facade_result
+    class Context:
+        platform_actions = types.SimpleNamespace(set_thread_title=set_title)
+        settings = {"owner_id":"owner", "guild_id":"guild", "parent_channel_id":"parent", "rename_threads":True}
+        def __init__(self): self.tools = {}
+        def get_config(self, key, default=None):
+            return self.settings.get(key, default)
+        def register_skill(self, *a): pass
+        def register_hook(self, *a): pass
+        def register_command(self, *a, **kw): pass
+        def register_tool(self, *, name, handler, **kw): self.tools[name] = (handler, kw)
+    ctx = Context()
+    mod.register(ctx)
+    handler, registration = ctx.tools["media_scout"]
+    assert registration["is_async"] is True
+    arguments = {"action":"name_thread", "media_id":receipt["media_id"], "author":"alexbenzer.com"}
+    result = json.loads(asyncio.run(handler(arguments)))  # real model-call shape: no source kwarg
+    assert result["state"] == "failed" and result["detail"] == "capability_not_granted"
+    assert "submitted" not in result
+    facade_result.update(ok=True, error="")
+    result = json.loads(asyncio.run(handler(arguments)))
+    assert result["state"] == "acknowledged" and result["acknowledgment_only"] is True
+    asyncio.run(handler(arguments))
+    assert calls == [("discord", "thread", "thread", "bluesky_alexbenzer_com_3mysmixc7hs2k")] * 2
+    assert json.loads(asyncio.run(handler(arguments, source={**source, "thread_id":"foreign"}))) == {"error":"injected source conflicts with trusted session context"}
+    session_values["HERMES_SESSION_THREAD_ID"] = "foreign"
+    assert json.loads(asyncio.run(handler(arguments)))["error"] == "captured source thread not found"
+    session_values["HERMES_SESSION_THREAD_ID"] = "thread"
+    ctx.settings["owner_id"] = ""
+    assert json.loads(asyncio.run(handler(arguments)))["error"] == "captured owner source and naming consent required"
+    db = sqlite3.connect(path)
+    assert db.execute("SELECT title,state FROM thread_titles").fetchone() == ("bluesky_alexbenzer_com_3mysmixc7hs2k", "acknowledged")
+    assert db.execute("SELECT author FROM thread_authors").fetchone() == ("alexbenzer.com",)
+    assert db.execute("SELECT source_url,thread_id FROM receipts").fetchone() == ("https://bsky.app/profile/alexbenzer.com/post/3mysmixc7hs2k", "thread")
+    assert db.execute("SELECT summary,evidence_hash,claim_token,claim_state,review_task_id FROM media WHERE media_id=?", (receipt["media_id"],)).fetchone() == ("saved summary", "evidence-hash", "claim-token", "done", "task-id")
+    assert db.execute("SELECT COUNT(*) FROM thread_titles WHERE title LIKE '%foreign%'").fetchone() == (0,)
+    db.close()
+
+
+def test_initialize_adds_author_metadata_without_rewriting_legacy_records(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    db = sqlite3.connect(tmp_path / "legacy.db")
+    db.executescript("CREATE TABLE media(media_id TEXT PRIMARY KEY,shortcode TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL,summary TEXT NOT NULL DEFAULT '',evidence_hash TEXT NOT NULL DEFAULT '',evidence_path TEXT NOT NULL DEFAULT '',coverage TEXT NOT NULL DEFAULT '',claim_token TEXT NOT NULL DEFAULT '',claim_owner TEXT NOT NULL DEFAULT '',claim_state TEXT NOT NULL DEFAULT '',pinned INTEGER NOT NULL DEFAULT 0,review_task_id TEXT NOT NULL DEFAULT '',review_key TEXT NOT NULL DEFAULT '',packet_version INTEGER NOT NULL DEFAULT 0); CREATE TABLE receipts(receipt_id TEXT PRIMARY KEY,message_id TEXT NOT NULL UNIQUE,media_id TEXT NOT NULL,source_url TEXT NOT NULL,platform TEXT NOT NULL,owner_id TEXT NOT NULL,guild_id TEXT NOT NULL,parent_channel_id TEXT NOT NULL,chat_id TEXT NOT NULL,thread_id TEXT NOT NULL,created_at INTEGER NOT NULL,session_key TEXT NOT NULL DEFAULT '',source_text TEXT NOT NULL DEFAULT '',chat_type TEXT NOT NULL DEFAULT 'group'); CREATE TABLE thread_titles(thread_id TEXT PRIMARY KEY,media_id TEXT NOT NULL,title TEXT NOT NULL,state TEXT NOT NULL,detail TEXT NOT NULL DEFAULT ''); INSERT INTO media(media_id,shortcode,created_at,summary,evidence_hash,claim_token,claim_state,review_task_id) VALUES('m','id',1,'summary','hash','claim','running','task'); INSERT INTO receipts VALUES('r','msg','m','https://youtube.com/watch?v=AbCdEf12345','discord','owner','guild','parent','chat','thread',1,'session','url','group');")
+    mod.initialize(db)
+    assert db.execute("SELECT summary,evidence_hash,claim_token,claim_state,review_task_id FROM media").fetchone() == ("summary", "hash", "claim", "running", "task")
+    assert db.execute("SELECT source_url,thread_id FROM receipts").fetchone() == ("https://youtube.com/watch?v=AbCdEf12345", "thread")
+    assert db.execute("SELECT COUNT(*) FROM thread_authors").fetchone() == (0,)
+    db.close()
 
 
 def test_rejects_ambiguous_or_untrusted_instagram_urls(monkeypatch, tmp_path):

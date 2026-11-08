@@ -57,3 +57,14 @@ def test_foreign_sources_and_disabled_naming_cannot_rename(tmp_path):
     settings["rename_threads"] = False
     asyncio.run(api.rename_captured_thread(ctx, source, "tiktok_123", "media", factory))
     assert calls == []
+
+
+def test_unknown_author_is_deferred_only_for_bound_captured_thread(tmp_path):
+    api = load(); ctx, source, factory, calls, _ = setup(tmp_path, {"ok": True})
+    asyncio.run(api.rename_captured_thread(ctx, source, None, "media", factory))
+    with closing(factory()) as db:
+        assert db.execute("SELECT title,state,detail FROM thread_titles").fetchone() == ("", "deferred", "source author unknown")
+    assert calls == []
+    asyncio.run(api.rename_captured_thread(ctx, dict(source, user_id="intruder"), None, "other", factory))
+    with closing(factory()) as db:
+        assert db.execute("SELECT COUNT(*) FROM thread_titles").fetchone() == (1,)

@@ -51,7 +51,7 @@ def test_provisional_share_links_are_distinct_and_bounded():
     assert a.identity_quality == b.identity_quality == "share-link"
     assert a.identity_key == b.identity_key == "tiktok:share:ZM123abc"
     assert parse("https://www.snapchat.com/t/Share123").identity_key == "snapchat:share:Share123"
-    assert len(a.title) <= 100 and a.title == "tiktok_share_ZM123abc"
+    assert a.title == ""
 
 
 def test_reddit_post_identity_and_provisional_media():
@@ -100,6 +100,19 @@ def test_canonical_outputs_are_reparseable_and_thread_id_is_global():
         assert source is not None, url
         assert parse(source.canonical_url).identity_key == source.identity_key
     assert parse("https://threads.com/@OldName/post/AbC123").identity_key == parse("https://threads.net/@NewName/post/AbC123").identity_key
+
+
+def test_author_qualified_titles_keep_id_case_and_defer_unknown_authors():
+    bluesky = parse("https://bsky.app/profile/alexbenzer.com/post/3mysmixc7hs2k")
+    assert bluesky.title == "bluesky_alexbenzer_com_3mysmixc7hs2k"
+    assert parse("https://www.tiktok.com/@Some.User/video/12345").title == "tiktok_Some_User_12345"
+    assert parse("https://youtube.com/watch?v=AbCdEf12345").title == ""
+    assert parse("https://x.com/i/status/123456789").author is None
+    assert parse("https://x.com/i/status/123456789").title == ""
+    assert sources.author_title("instagram", "a" * 1000, "AbC123") is None
+    long_title = sources.author_title("x", "valid author", "a" * 128)
+    assert long_title and len(long_title) <= 100
+    assert sources.author_title("x", "bad\nauthor", "AbC123") is None
 
 
 def test_legacy_scheme_case_and_http_ambiguity_are_not_silently_lost():
