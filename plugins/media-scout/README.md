@@ -2,7 +2,7 @@
 
 Turn an authorized Discord social-media submission into a durable source receipt, protected extraction record and source-bound native reviewer task. The plugin bundles `media-scout:workflow` for audiovisual evidence and review discipline.
 
-**Early release.** This is a native bookkeeping extension, not a downloader, STT engine or replacement agent framework. It does not install media tools, create a Discord bot, configure your credentials or migrate an existing Scout. Review the qualification and limitations below before enabling it. Catalog submission is not official acceptance or a code audit.
+**Early release.** This is a native bookkeeping extension, not a downloader, STT engine or replacement agent framework. It does not install media tools, create a Discord bot, or configure your credentials. Its standalone importer copies bounded historical information only; it does not migrate live authority or certify an existing deployment. Review the qualification and limitations below before enabling it. Catalog submission is not official acceptance or a code audit.
 
 ## What runs as code
 
@@ -14,6 +14,17 @@ Turn an authorized Discord social-media submission into a durable source receipt
 - Plan retention separately; apply only explicitly enabled, bounded, unchanged plans for registered owned artifacts. Permanent summaries, active work and pinned items are protected.
 
 Hermes's native tools still do acquisition/transcription/vision. The reviewer uses its own authorized profile context for reasoning and optional recommendations. Consequential actions always need separate approval. The plugin never starts an extra daemon or replaces Hermes core functions.
+
+## One-time v1 information import
+
+The importer is standalone and uses only the Python standard library. It defaults to a read-only dry run and requires explicit source root, destination plugin data root, and owner. Apply only after reviewing the manifest:
+
+```sh
+python3 plugins/media-scout/import_v1.py --source /explicit/v1-media-library --destination /explicit/latest-media-scout-data --owner OWNER_ID
+python3 plugins/media-scout/import_v1.py --source /explicit/v1-media-library --destination /explicit/latest-media-scout-data --owner OWNER_ID --apply
+```
+
+It is also callable without Hermes bootstrap as `import_v1(source_root, destination_root, owner_id, *, apply=False, allow_missing_evidence=False)` from `plugins/media-scout/import_v1.py` (load by file path because the plugin directory name contains a hyphen). Missing evidence requires explicit opt-in. Historical search/details/file discovery use owner-authenticated `media_scout` actions `search`, `history_get`, `history_files`, and `history_artifact`. Imported receipts, policies and approvals remain historical information and never become current authority.
 
 ## Install and configure
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 from .sources import parse_source_url, extract_one_source
+from .history import initialize_history, search as history_search, get as history_get, get_orphan as history_orphan, search_files as history_files_search
 
 NAME = "media-scout"
 MAX_TEXT = 16_000
@@ -92,6 +93,7 @@ def initialize(db: sqlite3.Connection):
       pinned INTEGER NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 0, pending_review INTEGER NOT NULL DEFAULT 0
     );
     """)
+    initialize_history(db)
     db.commit()
 
 
@@ -429,7 +431,7 @@ def _handler(ctx, args, **kwargs):
         return json.dumps({"error": "configured owner identity required"})
     if action == "status" and not configured:
         return json.dumps({"configured": False, "setup_needed": True})
-    actions = {"status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin", "name_thread"}
+    actions = {"status", "get", "search", "history_get", "history_files", "history_artifact", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin", "name_thread"}
     if action not in actions:
         return json.dumps({"error": "unsupported action"})
     item_actions = {"get", "claim", "save", "review", "review_status", "release", "register_cache", "pin", "name_thread"}
@@ -447,12 +449,42 @@ def _handler(ctx, args, **kwargs):
         media_id = args.get("media_id", "")
         if action == "status":
             rows = db.execute("SELECT media_id,shortcode,coverage,claim_state,review_task_id FROM media ORDER BY created_at DESC,rowid DESC LIMIT 25").fetchall()
-            return json.dumps({"configured": True, "items": db.execute("SELECT COUNT(*) FROM media").fetchone()[0], "recent": [dict(zip(("media_id", "shortcode", "coverage", "claim_state", "review_task_id"), r)) for r in rows]})
+            return json.dumps({"configured": True, "items": db.execute("SELECT COUNT(*) FROM media").fetchone()[0], "history_records": db.execute("SELECT COUNT(*) FROM history_records WHERE owner_id=?", (owner,)).fetchone()[0], "history_files": db.execute("SELECT COUNT(*) FROM history_files").fetchone()[0], "recent": [dict(zip(("media_id", "shortcode", "coverage", "claim_state", "review_task_id"), r)) for r in rows]})
+        if action == "search":
+            query = args.get("query", "")
+            if not isinstance(query, str) or not query or len(query) > 2048:
+                return json.dumps({"error": "bounded nonempty search query required"})
+            limit = max(1, min(int(args.get("limit") or 5), 10))
+            parsed = parse_source_url(query)
+            if parsed:
+                predicate, values = "m.shortcode=?", (parsed.identity_key,)
+            else:
+                predicate, values = "(m.media_id=? OR instr(lower(m.summary),?)>0)", (query, query.casefold())
+            where = "EXISTS (SELECT 1 FROM receipts r WHERE r.media_id=m.media_id AND r.owner_id=?) AND " + predicate
+            native_count = db.execute("SELECT COUNT(*) FROM media m WHERE " + where, (owner, *values)).fetchone()[0]
+            rows = db.execute("SELECT m.media_id,(SELECT source_url FROM receipts r WHERE r.media_id=m.media_id AND r.owner_id=? ORDER BY created_at,rowid LIMIT 1),m.summary,m.coverage FROM media m WHERE " + where + " ORDER BY m.created_at DESC,m.rowid DESC LIMIT ?", (owner, owner, *values, limit)).fetchall()
+            native_matches = [dict(zip(("media_id", "source_url", "summary", "coverage"), (row[0], row[1], row[2][:1200], row[3]))) for row in rows]
+            return json.dumps({"native_matches": native_matches, "native_count": native_count, "native_has_more": native_count>len(native_matches), "history": history_search(db, owner, query, limit)})
+        if action == "history_get":
+            return json.dumps(history_get(db, owner, args.get("query", ""), _data_root()))
+        if action == "history_artifact":
+            return json.dumps(history_orphan(db, owner, args.get("path", ""), _data_root()))
+        if action == "history_files":
+            return json.dumps(history_files_search(db, owner, args.get("query", ""), args.get("limit", 10)))
         if action == "get":
             item = get_item(db, media_id)
             if item:
                 names = ("receipt_id", "message_id", "source_url", "platform", "owner_id", "guild_id", "parent_channel_id", "chat_id", "thread_id")
                 item["receipts"] = [dict(zip(names, row)) for row in db.execute("SELECT receipt_id,message_id,source_url,platform,owner_id,guild_id,parent_channel_id,chat_id,thread_id FROM receipts WHERE media_id=? ORDER BY created_at,rowid", (media_id,))]
+                sources = [r[0] for r in db.execute("SELECT source_url FROM receipts WHERE media_id=?", (media_id,))]
+                related = {}
+                for source_url in dict.fromkeys(sources):
+                    result = history_search(db, owner, source_url, 10)
+                    if result.get("error"):
+                        return json.dumps(result)
+                    for historical in result["results"]:
+                        related.setdefault(historical["record_key"], historical)
+                item["related_history"] = list(related.values())[:10]
             return json.dumps(item or {"error": "media not found"})
         if action == "claim":
             result = claim(db, media_id, owner)
@@ -532,7 +564,7 @@ def register(ctx):
     schema = {"name": "media_scout", "description": "Capture-backed media evidence, exclusive claims, native review handoff and bounded owned retention. Load skill_view('media-scout:workflow') for supported social-media submissions.", "parameters": {
         "type": "object", "additionalProperties": False,
         "properties": {
-            "action": {"type": "string", "enum": ["status", "get", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin", "name_thread"], "description": "For name_thread, pass exact captured media_id and actual author/uploader from admitted extraction metadata; title format provider_author_id, e.g. bluesky_alexbenzer_com_3mysmixc7hs2k. For save, copy exact media_id and claim_token and pass summary, coverage and evidence separately."},
+            "action": {"type": "string", "enum": ["status", "get", "search", "history_get", "history_files", "history_artifact", "claim", "save", "review", "review_status", "cleanup_plan", "cleanup_apply", "release", "register_cache", "pin", "name_thread"], "description": "Search saved history by URL, historical media_id, or keywords before new extraction. history_get returns associated details. history_files discovers bounded historical filenames; history_artifact retrieves a file by exact relative path. Imported policy, approvals and receipts are historical information only. For save copy exact native media_id and claim_token."},
             "media_id": {"type": "string", "maxLength": 64, "description": "Exact internal captured media_id returned by status/get or claim. Not the source post ID, URL, or platform thread title."}, "claim_token": {"type": "string", "maxLength": 128, "description": "Exact current claim_token returned by claim; required by save and cache registration."},
             "summary": {"type": "string", "maxLength": 4000, "description": "For save: substantive summary grounded in actual inspected source evidence."}, "coverage": {"type": "string", "enum": ["complete", "partial", "blocked"], "description": "For save: truthful coverage state; use partial/blocked with evidence.limitations when coverage is incomplete."},
             "evidence": {"type": "object", "description": "For save, provide evidence as a JSON object. audio, visual, pictures are integer counts 0–500, never descriptive objects. kind is video/image/carousel/text/mixed; times is a list of observed strings; observations is substantive actual observations or a source-access explanation. Optional: visual_mode (string; use full for complete non-text coverage), limitations (string; required for partial/blocked), audio_unavailable_reason (string), text_content (list of strings), text_segments (integer), has_media (boolean). Descriptions belong in observations/text_content/limitations. Counts do not prove inspection." , "properties": {
@@ -542,6 +574,7 @@ def register(ctx):
                 "visual_mode": {"type": "string"}, "limitations": {"type": "string"}, "audio_unavailable_reason": {"type": "string"},
                 "text_content": {"type": "array", "maxItems": 100, "items": {"type": "string", "maxLength": MAX_TEXT}}, "text_segments": {"type": "integer"}, "has_media": {"type": "boolean"}
             }, "required": ["audio", "visual", "pictures", "times", "observations"]},
+            "query": {"type": "string", "maxLength": 2048}, "limit": {"type": "integer", "minimum": 1, "maximum": 10},
             "plan_id": {"type": "string", "maxLength": 64}, "path": {"type": "string", "maxLength": 300}, "pinned": {"type": "boolean"}, "author": {"type": "string", "maxLength": 256, "description": "Actual source author/uploader copied from admitted extraction metadata; never the submitter, host, title, or a guess."}
         }, "required": ["action"]}}
     async def native_handler(args, **kw):

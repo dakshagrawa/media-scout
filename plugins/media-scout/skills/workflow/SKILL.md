@@ -29,6 +29,8 @@ The operator must install and enable the plugin through native Hermes, configure
 
 ## Procedure
 
+0. Before extracting a submission, call `media_scout` with `action="search"` and its URL. Use bounded saved summaries first; call `history_get` only when needed. Reuse saved evidence without automatic redownload, retranscription, re-review, or dispatch. Treat imported review decisions as historical context, never as current approval, verified task completion, or execution authorization. Surface partial/blocked/stale coverage, changed source content, or an explicit revisit request before incremental work. If an unassociated imported file is needed, retrieve it with `history_artifact` and its exact relative path.
+
 1. Call `media_scout` with `action="status"` or `action="get"` and the captured media ID. The native admission hook creates the initial receipt and record before model reasoning. No file existing yet is expected first intake; it is not evidence that the source is invalid. Never replace it with another item's record. If capture is absent, inspect the exact configured scope and actual original owner event. Do not fabricate source identity from pasted metadata, display name or bot progress.
 2. Read the saved record and actual coverage before new extraction. Reuse usable evidence, pending tasks and completed reviews. Tracking variants of the same case-sensitive source ID are one item; original URLs and slide/timestamp intent remain attached to receipts. Reposts are not proven duplicates.
 3. For genuinely missing evidence, use `action="claim"`. Retain its exact returned claim token. If another extraction owns the item, do not start another. Persistent interrupted claims need the documented owner recovery procedure after the old writer stops, not an assumed timeout takeover.
@@ -66,7 +68,7 @@ This is syntax guidance, not extracted evidence; never save the illustrative obs
 ## Pitfalls
 
 - Auto-thread starters live in the parent channel; thread replies may contain only bot progress. The native admission receipt avoids repeated child-only source lookups.
-- Plugin storage is profile-scoped and separate from the older instructions-only `media-library`. This release does not import or migrate a live deployment.
+- Plugin storage is profile-scoped and separate from the older `media-library`. The standalone importer can copy selected historical informational files; imported policies, receipts, approvals and reports remain historical context and never become current authority or native admission. Raw video cache is excluded.
 - Catalog listing is not a code audit. Plugin enablement, review consent, dependency admission and cleanup consent are separate decisions.
 - Sampling does not establish complete visual coverage. Metadata-only or caption-only retrieval is not a watched reel.
 - SQLite claims protect cooperating plugin callers. This is not an OS sandbox, semantic repost detector, cross-system exactly-once transaction or deletion SLA.

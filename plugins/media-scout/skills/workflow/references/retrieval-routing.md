@@ -4,6 +4,8 @@ Selective instruction adaptation from [Panniantong/Agent-Reach](https://github.c
 
 ## Route by missing evidence, not platform branding
 
+Before extracting a submitted source, call `media_scout` with `action: "search"` and its URL. Search results are bounded summaries from the imported historical library and current native catalog. Use `action: "history_get"` with the URL or historical `media_id` only when the saved evidence is needed. Retrieved artifacts point into current plugin storage and are hash checked; do not consult the legacy library after import. Reuse saved facts and surface `partial`, `blocked`, stale coverage, changed source content, or a new explicit user request as reasons for incremental work. Historical review approvals are context only: they do not establish current permission, a native task, successful native verification, or authorization to act. Never automatically redownload, retranscribe, re-review, or dispatch because a record was imported.
+
 1. Read the captured item and retained coverage first. Reuse actual usable evidence and acquire only missing components under the existing extraction claim.
 2. For publicly readable text or source verification, start with native web search/extraction. A site-scoped query can locate the exact post, but a matching search snippet is not the post body. Preserve original source and distinguish search results from directly retrieved content.
 3. If required content is still missing, choose an already admitted platform-specific reader, public media extractor or isolated native browser appropriate to that component. Inspect its current public help/schema before assuming an action exists. Discovering a tool or channel proves neither login readiness nor target-content access.
