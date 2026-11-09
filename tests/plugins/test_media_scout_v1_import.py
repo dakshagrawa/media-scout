@@ -207,4 +207,3 @@ def test_registered_tool_owner_check_and_history_actions(monkeypatch,tmp_path):
     assert len(item["related_history"])==1
     session.get_session_env=lambda key,default="": "stranger" if key=="HERMES_SESSION_USER_ID" else default
     assert "owner identity required" in json.loads(asyncio.run(ctx.handler({"action":"search","query":"legacy_001"}))) ["error"]
-
