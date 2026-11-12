@@ -51,6 +51,15 @@ def test_missing_permission_is_recorded_without_breaking_intake(tmp_path):
         assert db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0] == 1
 
 
+def test_generic_failure_after_remote_edit_is_unconfirmed(tmp_path):
+    api = load(); ctx, source, factory, calls, _ = setup(tmp_path, {"ok": False, "error": "action_failed"})
+    asyncio.run(api.rename_captured_thread(ctx, source, "instagram_creator_AbCdEfG", "media", factory))
+    with closing(factory()) as db:
+        assert db.execute("SELECT title,state,detail FROM thread_titles").fetchone() == ("instagram_creator_AbCdEfG", "unconfirmed", "action_failed")
+        assert db.execute("SELECT COUNT(*) FROM receipts").fetchone()[0] == 1
+    assert len(calls) == 1
+
+
 def test_foreign_sources_and_disabled_naming_cannot_rename(tmp_path):
     api = load(); ctx, source, factory, calls, settings = setup(tmp_path, {"ok": True})
     asyncio.run(api.rename_captured_thread(ctx, dict(source, user_id="intruder"), "tiktok_123", "media", factory))

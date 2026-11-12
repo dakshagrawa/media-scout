@@ -34,8 +34,8 @@ async def rename_captured_thread(ctx, source, title, media_id, db_factory):
         if not receipt:
             return
         previous = db.execute("SELECT media_id,title,state FROM thread_titles WHERE thread_id=?", (thread,)).fetchone()
-        if previous == (media_id, title, "acknowledged"):
-            return
+        if previous and previous[:2] == (media_id, title) and previous[2] in {"acknowledged", "unconfirmed"}:
+            return  # uncertain writes need remote readback, not a blind repeat
         if previous and previous[0] != media_id:
             return  # never retitle another item's existing thread
         db.execute("INSERT OR REPLACE INTO thread_titles VALUES(?,?,?,'requested','')", (thread, media_id, title))
@@ -50,7 +50,9 @@ async def rename_captured_thread(ctx, source, title, media_id, db_factory):
         result = {"ok": False, "error": "naming_timeout"}
     except Exception:
         result = {"ok": False, "error": "naming_failed"}
-    state = "acknowledged" if result.get("ok") is True else "failed"
+    # A generic transport failure can arrive after Discord applied the edit.
+    # Without remote readback it proves neither persistence nor failure.
+    state = "acknowledged" if result.get("ok") is True else ("unconfirmed" if result.get("error") in {"action_failed", "naming_timeout", "naming_failed"} else "failed")
     # This is an SDK acknowledgement, not independent proof of the current remote title.
     detail = "" if state == "acknowledged" else str(result.get("error", "naming_failed"))[:128]
     db = db_factory()

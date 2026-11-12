@@ -84,7 +84,7 @@ def _identity_key(url):
 
 def _keywords(record):
     words = [record.get("title", ""), record.get("summary", "")]
-    for field in ("topics", "entities"):
+    for field in ("topics", "entities", "retained_knowledge", "creator_claims"):
         value = record.get(field, [])
         if isinstance(value, list):
             words.extend(x if isinstance(x, str) else json.dumps(x, ensure_ascii=False, sort_keys=True) for x in value)

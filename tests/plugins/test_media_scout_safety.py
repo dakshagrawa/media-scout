@@ -2,6 +2,7 @@ import concurrent.futures
 import hashlib
 import json
 import sqlite3
+from pathlib import Path
 import pytest
 
 from test_media_scout_core import load_module
@@ -329,4 +330,78 @@ def test_review_opt_out_never_dispatches_or_creates_review_rows(monkeypatch, tmp
         assert result["error"] == "owner source overrides automatic review"
         assert db.execute("SELECT COUNT(*) FROM reviews").fetchone()[0] == 0
     assert calls == []
+    db.close()
+
+
+def _review_harness(monkeypatch, tmp_path, mod, data_root, *, contract_path="", contract_hash=""):
+    import types
+    settings = {"owner_id":"owner", "auto_review":True, "review_policy_reference":"operator consent",
+                "review_contract_path":contract_path, "review_contract_sha256":contract_hash}
+    class Bridge:
+        bodies = []
+        def __init__(self, *args): pass
+        @staticmethod
+        def packet_body(body, origin, key): return body + "\n<!-- marker -->"
+        def ensure_review(self, key, origin, body, **kwargs):
+            self.bodies.append(body)
+            return {"task_id":"task_12345678", "status":"blocked", "source_verified":True, "error":"held"}
+    import importlib
+    bridge = importlib.import_module(mod.__package__ + ".bridge")
+    monkeypatch.setattr(bridge, "NativeBridge", Bridge)
+    ctx = types.SimpleNamespace(get_config=lambda key, default=None: settings.get(key, default))
+    return ctx, Bridge
+
+
+def test_configured_review_contract_is_literal_and_default_stays_generic(monkeypatch, tmp_path):
+    import hashlib
+    mod = load_module(monkeypatch, tmp_path)
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    assert mod.save_evidence(db, media, token, "Synthetic review fixture", observed(), "partial")["saved"]
+    data_root = tmp_path / "plugin-data" / "media-scout"
+    configured = data_root / "operator-contract.md"
+    literal = "FULL OPERATOR FIXTURE: retain source provenance and disclose uncertainty.\n"
+    configured.write_text(literal)
+    ctx, bridge = _review_harness(monkeypatch, tmp_path, mod, data_root,
+                                  contract_path="operator-contract.md", contract_hash=hashlib.sha256(literal.encode()).hexdigest())
+    result = mod._review(ctx, db, media)
+    assert result.get("task_id") == "task_12345678"
+    assert len(bridge.bodies) >= 1 and all(literal in body for body in bridge.bodies)
+    assert db.execute("SELECT COUNT(*) FROM reviews").fetchone()[0] == 1
+    db.close()
+
+
+def test_contract_drift_blocks_review_binding_and_dispatch(monkeypatch, tmp_path):
+    import hashlib
+    mod = load_module(monkeypatch, tmp_path)
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    assert mod.save_evidence(db, media, token, "Synthetic review fixture", observed(), "partial")["saved"]
+    data_root = tmp_path / "plugin-data" / "media-scout"
+    configured = data_root / "operator-contract.md"
+    configured.write_text("changed contract")
+    packet = mod.get_item(db, media)["packet_version"]
+    db.execute("INSERT INTO reviews(media_id,packet_version,origin,task_id,state,assignee,board) VALUES(?,?,?,?,?,?,?)",
+               (media, packet, '{"preserved":true}', "existing_task", "pending", "reviewer", "media-review"))
+    db.commit()
+    ctx, bridge = _review_harness(monkeypatch, tmp_path, mod, data_root,
+                                  contract_path="operator-contract.md", contract_hash=hashlib.sha256(b"original").hexdigest())
+    result = mod._review(ctx, db, media)
+    assert "hash-mismatched" in result["error"]
+    assert db.execute("SELECT origin,task_id,state FROM reviews WHERE media_id=? AND packet_version=?", (media, packet)).fetchone() == ('{"preserved":true}', "existing_task", "pending")
+    assert bridge.bodies == []
+    db.close()
+
+
+def test_unconfigured_review_uses_generic_contract_only(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    db, _, media = fixture_record(mod, tmp_path)
+    token = mod.claim(db, media, "owner")["claim_token"]
+    assert mod.save_evidence(db, media, token, "Synthetic review fixture", observed(), "partial")["saved"]
+    data_root = tmp_path / "plugin-data" / "media-scout"
+    ctx, bridge = _review_harness(monkeypatch, tmp_path, mod, data_root)
+    result = mod._review(ctx, db, media)
+    generic = (Path(str(mod.__file__)).parent / "skills/workflow/references/review-contract.md").read_text()
+    assert result.get("task_id") == "task_12345678"
+    assert bridge.bodies and all(generic in body and "FULL OPERATOR FIXTURE" not in body for body in bridge.bodies)
     db.close()
