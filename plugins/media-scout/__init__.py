@@ -699,7 +699,10 @@ def register(ctx):
                     state_db.close()
                 if not naming_state:
                     return json.dumps({"error": "thread naming not recorded; inspect item state"})
-                return json.dumps({"media_id": media_id, "title": title, "state": naming_state[0], "detail": naming_state[1], "acknowledgment_only": naming_state[0] == "acknowledged"})
+                response = {"media_id": media_id, "title": title, "state": naming_state[0], "detail": naming_state[1], "acknowledgment_only": naming_state[0] == "acknowledged"}
+                if naming_state[0] == "unconfirmed":
+                    response["next_step"] = "The edit may already be applied. Check the visible Discord title before retrying; do not report definite failure or repeat the rename automatically."
+                return json.dumps(response)
             except Exception:
                 return json.dumps({"error": "thread naming deferred; inspect item state"})
             finally:

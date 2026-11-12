@@ -142,7 +142,7 @@ def test_registered_save_automatically_names_from_explicit_author(monkeypatch, t
     async def denied(*args): raise RuntimeError("synthetic post-save naming failure")
     ctx.platform_actions.set_thread_title = denied
     retried = json.loads(asyncio.run(handler(save_args)))
-    assert retried["saved"] is True and retried["naming"]["state"] in {"failed", "deferred"}
+    assert retried["saved"] is True and retried["naming"]["state"] == "unconfirmed"
     db = sqlite3.connect(path)
     assert db.execute("SELECT author FROM thread_authors").fetchone() == ("sample_creator",)
     assert db.execute("SELECT evidence_hash,claim_state FROM media").fetchone()[0]
