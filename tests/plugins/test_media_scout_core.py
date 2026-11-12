@@ -44,6 +44,9 @@ def test_registered_async_name_action_uses_captured_source_and_facade(monkeypatc
     db.execute("UPDATE media SET summary='saved summary',evidence_hash='evidence-hash',claim_token='claim-token',claim_state='done',review_task_id='task-id' WHERE media_id=?", (receipt["media_id"],))
     db.commit()
     db.close()
+    cached = path.parent / "cache" / receipt["media_id"]
+    cached.mkdir(parents=True)
+    (cached / "source.info.json").write_text(json.dumps({"webpage_url":"https://bsky.app/profile/alexbenzer.com/post/3mysmixc7hs2k", "uploader_id":"alexbenzer.com"}))
 
     monkeypatch.setattr(mod, "_db", lambda: sqlite3.connect(path))
     session = types.ModuleType("gateway.session_context")
@@ -78,6 +81,7 @@ def test_registered_async_name_action_uses_captured_source_and_facade(monkeypatc
     facade_result.update(ok=True, error="")
     result = json.loads(asyncio.run(handler(arguments)))
     assert result["state"] == "acknowledged" and result["acknowledgment_only"] is True
+    assert json.loads(asyncio.run(handler({"action":"name_thread", "media_id":receipt["media_id"]}))) ["state"] == "acknowledged"
     asyncio.run(handler(arguments))
     assert calls == [("discord", "thread", "thread", "bluesky_alexbenzer_com_3mysmixc7hs2k")] * 2
     assert json.loads(asyncio.run(handler(arguments, source={**source, "thread_id":"foreign"}))) == {"error":"injected source conflicts with trusted session context"}
@@ -92,6 +96,56 @@ def test_registered_async_name_action_uses_captured_source_and_facade(monkeypatc
     assert db.execute("SELECT source_url,thread_id FROM receipts").fetchone() == ("https://bsky.app/profile/alexbenzer.com/post/3mysmixc7hs2k", "thread")
     assert db.execute("SELECT summary,evidence_hash,claim_token,claim_state,review_task_id FROM media WHERE media_id=?", (receipt["media_id"],)).fetchone() == ("saved summary", "evidence-hash", "claim-token", "done", "task-id")
     assert db.execute("SELECT COUNT(*) FROM thread_titles WHERE title LIKE '%foreign%'").fetchone() == (0,)
+    db.close()
+
+
+def test_registered_save_automatically_names_from_explicit_author(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    path = tmp_path / "plugin-data" / "media-scout" / "data.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path); mod.initialize(db)
+    source = {"platform":"discord", "user_id":"owner", "scope_id":"guild", "parent_chat_id":"parent", "chat_id":"thread", "thread_id":"thread"}
+    captured = mod.capture_receipt(db, "msg", source, "https://instagram.com/reel/AbCdEfG")
+    token = mod.claim(db, captured["media_id"], "owner")["claim_token"]
+    db.close()
+    cached = path.parent / "cache" / captured["media_id"]
+    cached.mkdir(parents=True)
+    (cached / "extract.info.json").write_text(json.dumps({"webpage_url":"https://instagram.com/reel/AbCdEfG", "uploader_id":"sample_creator"}))
+    monkeypatch.setattr(mod, "_db", lambda: sqlite3.connect(path))
+    session = types.ModuleType("gateway.session_context")
+    values = {"HERMES_SESSION_USER_ID":"owner", "HERMES_SESSION_PLATFORM":"discord", "HERMES_SESSION_CHAT_ID":"thread", "HERMES_SESSION_THREAD_ID":"thread", "HERMES_SESSION_SCOPE_ID":"guild", "HERMES_SESSION_PARENT_CHAT_ID":"parent"}
+    setattr(session, "get_session_env", lambda name, default="": values.get(name, default))
+    monkeypatch.setitem(sys.modules, "gateway.session_context", session)
+    titles = []
+    async def set_title(platform, chat, thread, title):
+        titles.append(title); return {"ok":True}
+    class Context:
+        settings = {"owner_id":"owner", "guild_id":"guild", "parent_channel_id":"parent", "rename_threads":True}
+        platform_actions = types.SimpleNamespace(set_thread_title=set_title)
+        def __init__(self): self.tools = {}
+        def get_config(self, key, default=None): return self.settings.get(key, default)
+        def register_skill(self, *a): pass
+        def register_hook(self, *a): pass
+        def register_command(self, *a, **kw): pass
+        def register_tool(self, *, name, handler, **kw): self.tools[name] = (handler, kw)
+    ctx = Context(); mod.register(ctx)
+    handler, registration = ctx.tools["media_scout"]
+    assert registration["is_async"] is True
+    save_args = {"action":"save", "media_id":captured["media_id"], "claim_token":token, "summary":"Synthetic saved evidence.", "coverage":"partial", "evidence":{"audio":0,"visual":1,"pictures":0,"times":[],"observations":"Synthetic fixture observations, not actual extracted media.","limitations":"Synthetic partial fixture."}}
+    result = json.loads(asyncio.run(handler(save_args)))
+    assert result["saved"] is True and result["naming"]["state"] == "acknowledged"
+    assert titles == ["instagram_sample_creator_AbCdEfG"]
+    state_db = sqlite3.connect(path)
+    state_db.execute("UPDATE thread_titles SET state='failed' WHERE thread_id='thread'")
+    state_db.commit()
+    state_db.close()
+    async def denied(*args): raise RuntimeError("synthetic post-save naming failure")
+    ctx.platform_actions.set_thread_title = denied
+    retried = json.loads(asyncio.run(handler(save_args)))
+    assert retried["saved"] is True and retried["naming"]["state"] in {"failed", "deferred"}
+    db = sqlite3.connect(path)
+    assert db.execute("SELECT author FROM thread_authors").fetchone() == ("sample_creator",)
+    assert db.execute("SELECT evidence_hash,claim_state FROM media").fetchone()[0]
     db.close()
 
 
@@ -154,3 +208,40 @@ def test_tool_never_trusts_model_supplied_owner(monkeypatch, tmp_path):
     gateway.get_session_env = lambda name, default="": "intruder"
     monkeypatch.setitem(sys.modules, "gateway.session_context", gateway)
     assert "owner identity required" in mod._handler(ctx, {"action": "status", "owner_id": "owner"})
+
+
+def test_cached_author_requires_exact_source_and_rejects_symlinks_and_oversize(monkeypatch, tmp_path):
+    mod = load_module(monkeypatch, tmp_path)
+    base = tmp_path / "plugin-data" / "media-scout"
+    monkeypatch.setattr(mod, "_data_root", lambda: base)
+    item = "a" * 24
+    cache = base / "cache" / item
+    cache.mkdir(parents=True)
+    metadata = cache / "source.info.json"
+    metadata.write_text(json.dumps({"webpage_url":"https://youtu.be/AbCdEf12345", "uploader_id":"@actual"}))
+    assert mod._cached_source_author(item, "https://youtube.com/watch?v=AbCdEf12345&utm_source=x") == "@actual"
+    assert mod._cached_source_author(item, "https://youtu.be/ZyXwVu98765") is None
+    metadata.write_text(json.dumps({"webpage_url":"https://youtu.be/AbCdEf12345", "uploader_id":"@actual", "padding":"x" * (513 * 1024)}))
+    assert mod._cached_source_author(item, "https://youtu.be/AbCdEf12345") is None
+    metadata.unlink()
+    outside = tmp_path / "outside.json"
+    outside.write_text(json.dumps({"webpage_url":"https://youtu.be/AbCdEf12345", "uploader_id":"@wrong"}))
+    metadata.symlink_to(outside)
+    assert mod._cached_source_author(item, "https://youtu.be/AbCdEf12345") is None
+    metadata.unlink()
+    cache.rmdir()
+    cache.symlink_to(tmp_path, target_is_directory=True)
+    assert mod._cached_source_author(item, "https://youtu.be/AbCdEf12345") is None
+    cache.unlink()
+    cache.parent.rmdir()
+    cache.parent.symlink_to(tmp_path, target_is_directory=True)
+    assert mod._cached_source_author(item, "https://youtu.be/AbCdEf12345") is None
+
+
+def test_import_keyword_fields_include_retained_knowledge_and_creator_claims():
+    spec = importlib.util.spec_from_file_location("media_scout_import_for_test", MODULE.with_name("import_v1.py"))
+    assert spec and spec.loader
+    importer = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(importer)
+    text = importer._keywords({"retained_knowledge":["fact alpha"], "creator_claims":["claim beta"]})
+    assert "fact alpha" in text and "claim beta" in text

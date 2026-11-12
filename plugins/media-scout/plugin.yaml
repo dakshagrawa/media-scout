@@ -32,6 +32,15 @@ config_schema:
   review_policy_reference:
     type: string
     default: ""
+    description: "Separate standing review consent; does not trust imported policies."
+  review_contract_path:
+    type: string
+    default: ""
+    description: "Optional plugin-owned relative path to an operator-approved full review contract."
+  review_contract_sha256:
+    type: string
+    default: ""
+    description: "Required SHA-256 of the configured full review contract; drift fails closed."
   review_profile:
     type: string
     default: default
