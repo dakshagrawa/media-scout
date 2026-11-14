@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import ipaddress
 import re
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
@@ -207,20 +208,62 @@ def parse_source_url(value: str) -> Source | None:
     return None
 
 
+def parse_web_identity(value: str) -> Source | None:
+    """Parse a conservative public-web identity, without granting admission."""
+    if not isinstance(value, str) or not value or len(value) > MAX_URL or not value.isascii() or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in value) or "\\" in value:
+        return None
+    try:
+        p = urlsplit(value)
+        host = p.hostname or ""
+        if p.scheme != "https" or p.username is not None or p.password is not None or p.netloc.lower() != host or p.fragment or host in _KNOWN_HOSTS:
+            return None
+        if not re.fullmatch(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}", host, re.ASCII):
+            return None
+        if host.endswith((".local", ".localhost", ".internal", ".test", ".invalid")):
+            return None
+        try:
+            ipaddress.ip_address(host)
+            return None
+        except ValueError:
+            pass
+        if "%" in p.path or "//" in p.path or any(x in (".", "..") for x in p.path.split("/")):
+            return None
+        # Only innocuous query keys are admitted: no credentials or redirect parameters.
+        pairs = parse_qsl(p.query, keep_blank_values=True, strict_parsing=True) if p.query else []
+        if any(k.lower() not in {"page", "view", "lang", "language"} or not re.fullmatch(r"[A-Za-z0-9_-]{0,64}", v, re.ASCII) for k, v in pairs):
+            return None
+        canonical = urlunsplit(("https", host, p.path or "/", p.query, ""))
+        platform = "pdf_link" if p.path.lower().endswith(".pdf") else "web"
+        return _make(platform, hashlib.sha256(canonical.encode("ascii")).hexdigest(), value, canonical)
+    except (ValueError, UnicodeError):
+        return None
+
+
 _URL_RE = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 
 
-def extract_one_source(text: str) -> Source | None:
+def extract_one_source(text: str, allowed_web_hosts=()) -> Source | None:
     if not isinstance(text, str) or len(text) > MAX_TEXT:
         return None
     found: list[Source] = []
-    for match in _URL_RE.finditer(text):
+    matches = list(_URL_RE.finditer(text))
+    if len(matches) > 1 and isinstance(allowed_web_hosts, list):
+        for match in matches:
+            candidate = match.group(0).rstrip(".,;:!?)]}")
+            web = parse_web_identity(candidate)
+            if web and urlsplit(candidate).hostname in allowed_web_hosts:
+                return None
+    for match in matches:
         raw = match.group(0).rstrip(".,;:!?)]}")
         try:
             host = urlsplit(raw).hostname
         except ValueError:
             host = None
         parsed = parse_source_url(raw)
+        if not parsed and isinstance(allowed_web_hosts, list) and len(matches) == 1:
+            web = parse_web_identity(raw)
+            if web and host in allowed_web_hosts:
+                parsed = web
         if parsed:
             found.append(parsed)
         elif host:

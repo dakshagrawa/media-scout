@@ -405,3 +405,41 @@ def test_unconfigured_review_uses_generic_contract_only(monkeypatch, tmp_path):
     assert result.get("task_id") == "task_12345678"
     assert bridge.bodies and all(generic in body and "FULL OPERATOR FIXTURE" not in body for body in bridge.bodies)
     db.close()
+
+
+def test_configured_web_admission_and_registered_tool(monkeypatch, tmp_path):
+    import asyncio, sys, types, socket
+    mod=load_module(monkeypatch,tmp_path)
+    settings={"owner_id":"owner","guild_id":"7","parent_channel_id":"8"}
+    class Ctx:
+        def get_config(self,k,d=None): return settings.get(k,d)
+        def register_skill(self,*a): pass
+        def register_hook(self,*a): self.hook=a[1]
+        def register_command(self,*a,**kw): pass
+        def register_tool(self,*,handler,**kw): self.handler=handler
+    ctx=Ctx(); mod.register(ctx)
+    session=types.ModuleType("gateway.session_context"); session.get_session_env=lambda k,d="": "owner" if k=="HERMES_SESSION_USER_ID" else d
+    monkeypatch.setitem(sys.modules,"gateway.session_context",session)
+    monkeypatch.setattr(socket,"getaddrinfo",lambda *a,**k: pytest.fail("network lookup"))
+    source={"platform":"discord","user_id":"owner","scope_id":"7","parent_chat_id":"8","chat_id":"42","thread_id":"42"}
+    args=dict(source=source,platform="discord",message_id="m1",session_key="key",text="https://example.org/article?view=full")
+    assert mod._capture(ctx,**args) is None
+    settings["allowed_web_hosts"]=["example.org"]
+    assert mod._capture(ctx,**{**args,"source":{**source,"user_id":"other"}}) is None
+    item=mod._capture(ctx,**args); assert item and item["platform"]=="web"
+    run=lambda a: json.loads(asyncio.run(ctx.handler(a)))
+    media=item["media_id"]
+    assert run({"action":"get","media_id":media})["canonical_url"]==args["text"]
+    assert run({"action":"search","query":args["text"]})["native_count"]==1
+    token=run({"action":"claim","media_id":media})["claim_token"]
+    evidence={"kind":"text","audio":0,"visual":0,"pictures":0,"times":[],"observations":"Synthetic article text was inspected.","text_content":["Synthetic article."],"text_segments":1,"has_media":False}
+    assert run({"action":"save","media_id":media,"claim_token":token,"summary":"Synthetic article","coverage":"complete","evidence":evidence})["saved"]
+    pdf="https://example.org/paper.pdf"
+    asyncio.run(ctx.hook(**{**args,"text":pdf,"message_id":"m2","source":{**source,"thread_id":"43","chat_id":"43"}}))
+    match=run({"action":"search","query":pdf})["native_matches"][0]
+    assert run({"action":"get","media_id":match["media_id"]})["source_platform"]=="pdf_link"
+    settings["allowed_web_hosts"]=[]
+    assert run({"action":"search","query":pdf})["native_count"]==1
+    settings["allowed_web_hosts"]=["example.org", "127.0.0.1", "localhost", "*.org"]
+    for bad in ("https://127.0.0.1/a", "https://example.org/a?token=secret", "https://example.org/a?url=https://evil.test/", "https://example.org/a https://evil.test/b", "https://example.org/a https://instagram.com/p/AbC123", "https://user:pass@example.org/a", "https://example.org:443/a", "https://example.org/a#fragment", "https://localhost/a", "https://evil.org/a"):
+        assert mod._capture(ctx,**{**args,"message_id":"bad", "text":bad}) is None
