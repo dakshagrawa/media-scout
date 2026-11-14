@@ -207,3 +207,45 @@ def test_registered_tool_owner_check_and_history_actions(monkeypatch,tmp_path):
     assert len(item["related_history"])==1
     session.get_session_env=lambda key,default="": "stranger" if key=="HERMES_SESSION_USER_ID" else default
     assert "owner identity required" in json.loads(asyncio.run(ctx.handler({"action":"search","query":"legacy_001"}))) ["error"]
+
+
+def test_related_derivatives_are_owner_scoped_bounded_and_exact(tmp_path):
+    mod=load_importer(); src=tmp_path/"src"; src.mkdir(); fixture(src)
+    for name in [*(f"frame{i:03}.jpg" for i in range(100)), "../legacy_001extra/foreign.jpg"]:
+        path=src/"evidence/derived-cache/cache/legacy_001"/name
+        path.parent.mkdir(parents=True,exist_ok=True); path.write_bytes(b"synthetic")
+    dst=tmp_path/"dst"; mod.import_v1(src,dst,"owner",apply=True)
+    import shutil; shutil.rmtree(src)
+    spec=importlib.util.spec_from_file_location("derivative_test_pkg",PLUGIN,submodule_search_locations=[str(PLUGIN.parent)])
+    plugin=importlib.util.module_from_spec(spec); sys.modules[spec.name]=plugin; spec.loader.exec_module(plugin)
+    hist=sys.modules["derivative_test_pkg.history"]
+    db=sqlite3.connect(dst/"data.db")
+    batch=db.execute("SELECT batch_id FROM history_imports").fetchone()[0]
+    db.execute("INSERT INTO history_files VALUES(?,?,?,?)",(batch,"evidence/derived-cache/cache/legacy_001/../escape", "0"*64, 1))
+    db.execute("INSERT INTO history_imports VALUES(?,?,?,?)",("foreign","stranger","{}","now"))
+    db.execute("INSERT INTO history_files VALUES(?,?,?,?)",("foreign","evidence/derived-cache/cache/legacy_001/foreign.jpg","0"*64,1))
+    db.commit()
+    result=hist.get(db,"owner","legacy_001",dst)["records"][0]["related_derivatives"]
+    assert result["count"]==100 and result["has_more"] and len(result["results"])==10
+    assert all(x["role"]=="retained derivative, not new inspection" for x in result["results"])
+    # A second import batch for the same owner must not contribute derivatives.
+    db.execute("INSERT INTO history_imports VALUES(?,?,?,?)",("same-owner-other-batch","owner","{}","now"))
+    db.execute("INSERT INTO history_files VALUES(?,?,?,?)",("same-owner-other-batch","evidence/derived-cache/cache/legacy_001/other-batch.jpg","0"*64,1))
+    db.commit()
+    assert hist.get(db,"owner","legacy_001",dst)["records"][0]["related_derivatives"]["count"]==100
+    # Historical IDs from the importer are arbitrary nonempty strings; preserve
+    # safe single-component IDs without imposing an unrelated length cap.
+    for media_id in ("legacy.001", "x" * 200):
+        db.execute("UPDATE history_records SET media_id=?",(media_id,))
+        db.execute("INSERT INTO history_files VALUES(?,?,?,?)",(batch,f"evidence/derived-cache/cache/{media_id}/frame.jpg","0"*64,1))
+        db.commit()
+        derived=hist.get(db,"owner",media_id,dst)["records"][0]["related_derivatives"]
+        assert derived["count"]==1 and derived["results"][0]["path"]==f"evidence/derived-cache/cache/{media_id}/frame.jpg"
+    for unsafe_id in (".", "..", "a/b", "a\\b", "bad\x00id", "bad\nID"):
+        db.execute("UPDATE history_records SET media_id=?",(unsafe_id,))
+        db.commit()
+        assert hist.get(db,"owner",unsafe_id,dst)["records"][0]["related_derivatives"]["count"]==0
+    first=result["results"][0]
+    assert hist.get_orphan(db,"owner",first["path"],dst)["artifact"]["sha256"]==first["sha256"]
+    assert "error" in hist.get(db,"stranger","legacy_001",dst)
+    db.close()

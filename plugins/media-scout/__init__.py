@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
-from .sources import parse_source_url, extract_one_source
+from .sources import parse_source_url, parse_web_identity, extract_one_source
 from .history import initialize_history, search as history_search, get as history_get, get_orphan as history_orphan, search_files as history_files_search
 
 NAME = "media-scout"
@@ -39,8 +39,8 @@ def parse_instagram_url(value: str):
         return None
 
 
-def canonical_identity(value: str):
-    parsed = parse_source_url(value)
+def canonical_identity(value: str, *, allow_web: bool = False):
+    parsed = parse_source_url(value) or (parse_web_identity(value) if allow_web else None)
     return parsed.identity_key if parsed else None
 
 
@@ -101,8 +101,12 @@ def _identity_shortcode(shortcode):
     return hashlib.sha256(shortcode.encode("ascii")).hexdigest()[:24]
 
 
-def capture_receipt(db, message_id, source, url, source_text=""):
+def capture_receipt(db, message_id, source, url, source_text="", *, allowed_web_hosts=()):
     parsed = parse_source_url(url)
+    if not parsed and isinstance(allowed_web_hosts, list):
+        web = parse_web_identity(url)
+        if web and urlsplit(url).hostname in allowed_web_hosts:
+            parsed = web
     if not parsed or not isinstance(message_id, str) or not message_id or len(message_id) > 256:
         return None
     shortcode, source_url = parsed.identity_key, parsed.original_url
@@ -142,7 +146,9 @@ def get_item(db, media_id) -> dict | None:
     names = ("media_id", "shortcode", "summary", "evidence_hash", "evidence_path", "coverage", "claim_token", "claim_owner", "claim_state", "pinned", "review_task_id", "packet_version")
     item: dict = dict(zip(names, row))
     original = db.execute("SELECT source_url FROM receipts WHERE media_id=? ORDER BY created_at,rowid LIMIT 1", (media_id,)).fetchone()
-    parsed = parse_source_url(original[0]) if original else None
+    parsed = (parse_source_url(original[0]) or parse_web_identity(original[0])) if original else None
+    if parsed and parsed.identity_key != item["shortcode"]:
+        parsed = None
     if parsed:
         item.update(source_platform=parsed.platform, source_post_id=parsed.post_id, canonical_url=parsed.canonical_url, identity_quality=parsed.identity_quality, suggested_thread_title=parsed.title)
     item["thread_names"] = [dict(zip(("thread_id", "title", "state", "detail"), r)) for r in db.execute("SELECT thread_id,title,state,detail FROM thread_titles WHERE media_id=?", (media_id,))]
@@ -290,11 +296,12 @@ def _capture(ctx, **kwargs):
         text = kwargs.get("text")
         if not isinstance(text, str):
             return None
-        found = extract_one_source(text)
+        allowed_web_hosts = _config(ctx, "allowed_web_hosts", [])
+        found = extract_one_source(text, allowed_web_hosts)
         if not found:
             return None
         db = _db()
-        captured = capture_receipt(db, message_id, {**source, "session_key": session_key}, found.original_url, text)
+        captured = capture_receipt(db, message_id, {**source, "session_key": session_key}, found.original_url, text, allowed_web_hosts=allowed_web_hosts)
         if captured and captured["media_id"] == _identity_shortcode(found.identity_key):
             return {"media_id": captured["media_id"], "source": source, "title": found.title or None, "platform": found.platform, "post_id": found.post_id}
     except Exception:
@@ -330,7 +337,7 @@ def _cached_source_author(media_id, source_url):
     root = _data_root() / "cache" / media_id
     if root.parent.is_symlink() or root.is_symlink() or not root.is_dir():
         return None
-    expected = canonical_identity(source_url)
+    expected = canonical_identity(source_url, allow_web=True)
     if not expected:
         return None
     candidates = sorted(root.glob("*.json"))[:8]
@@ -351,7 +358,7 @@ def _cached_source_author(media_id, source_url):
             if not isinstance(data, dict):
                 continue
             urls = [data.get(key) for key in ("source_url", "original_url", "webpage_url", "url")]
-            if not any(isinstance(url, str) and canonical_identity(url) == expected for url in urls):
+            if not any(isinstance(url, str) and canonical_identity(url, allow_web=True) == expected for url in urls):
                 continue
             for key in ("uploader_id", "channel_id", "creator_handle"):
                 value = data.get(key)
@@ -523,7 +530,7 @@ def _handler(ctx, args, **kwargs):
             if not isinstance(query, str) or not query or len(query) > 2048:
                 return json.dumps({"error": "bounded nonempty search query required"})
             limit = max(1, min(int(args.get("limit") or 5), 10))
-            parsed = parse_source_url(query)
+            parsed = parse_source_url(query) or parse_web_identity(query)
             if parsed:
                 predicate, values = "m.shortcode=?", (parsed.identity_key,)
             else:
@@ -678,8 +685,9 @@ def register(ctx):
                 receipt = db.execute("SELECT platform,source_url,chat_id,thread_id FROM receipts WHERE media_id=? AND owner_id=? AND guild_id=? AND parent_channel_id=? AND chat_id=? AND thread_id=? ORDER BY created_at,rowid LIMIT 1", (media_id, owner, _config(ctx, "guild_id", ""), _config(ctx, "parent_channel_id", ""), source.get("chat_id"), source.get("thread_id"))).fetchone()
                 if not receipt:
                     return json.dumps({"error": "captured source thread not found"})
-                parsed = parse_source_url(receipt[1])
-                if not parsed or parsed.platform not in {"instagram", "youtube", "tiktok", "threads", "snapchat", "x", "reddit", "facebook", "vimeo", "bluesky"}:
+                parsed = parse_source_url(receipt[1]) or parse_web_identity(receipt[1])
+                item = get_item(db, media_id)
+                if not parsed or not item or parsed.identity_key != item["shortcode"]:
                     return json.dumps({"error": "captured source identity unavailable"})
                 if not isinstance(author, str) or not author.strip():
                     author = _cached_source_author(media_id, receipt[1])

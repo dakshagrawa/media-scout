@@ -16,6 +16,7 @@ All sources use the same trusted owner receipt → durable record → exclusive 
 | Facebook | Public reels, watch/video permalinks | `facebook_` | Admitted video extraction or public browser evidence; report login/access restrictions honestly |
 | Vimeo | Numeric video permalinks and player embeds | `vimeo_` | Admitted finite-video extraction and actual audiovisual evidence |
 | Bluesky | `bsky.app/profile/author/post/rkey` | `bluesky_` | Public post text, attached images or admitted video extraction; author-qualified identity |
+| Optional public web article / PDF link | Exact operator-allowlisted HTTPS DNS host, conservative path and query | `web_` / `pdf_link_` with actual author | Existing admitted web extraction or PDF tools; access and contents must actually be verified |
 
 The title is a safe, case-preserving, bounded platform/content identifier, not a creator-controlled caption. Long identifiers receive a deterministic hash suffix. Existing Instagram record hashes and stored receipts are preserved.
 
@@ -33,6 +34,8 @@ The checked upstream [yt-dlp 2026.10.26 extractor tree](https://github.com/yt-dl
 - If a source is private, deleted, expired, blocked, login-only or unavailable to admitted tools, retain a truthful blocked/partial explanation. Do not bypass authentication, claim a preview is complete evidence or fabricate missing content.
 
 Profiles, feeds, search results, standalone playlists, arbitrary redirects, private messages/Snaps, indefinite live streams and Reddit comment-level links are outside this release. LinkedIn, Pinterest and arbitrary federated instances are not added merely through a permissive generic-URL fallback.
+
+Optional `allowed_web_hosts` defaults to `[]`; configure exact lowercase DNS hostnames, never wildcards. Admission is deterministic and does no DNS, HTTP, download, redirect following or content-type verification. A hostname alone cannot prove public DNS resolution or prevent a server redirect: acquisition tools must independently enforce public-network and no-redirect boundaries, or report blocked. URL query keys are restricted to `page`, `view`, `lang`, and `language`, with simple values; credential, redirect and unknown query parameters are rejected. Original accepted query and URL remain in the receipt. A `.pdf` suffix is only a naming hint, not proof of PDF content. Do not infer successful retrieval, full inspection, or an author from the URL. Native attachment metadata is not available in the actual `post_gateway_admission` hook: the gateway passes only `session_key`, `platform`, `source`, `message_id`, and `text`; attachment-only intake is not supported by this hook.
 
 ## Naming permission
 

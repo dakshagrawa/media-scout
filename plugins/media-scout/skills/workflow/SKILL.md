@@ -17,7 +17,7 @@ Use the native `media_scout` tool for bookkeeping and existing admitted Hermes t
 
 ## When to Use
 
-- An authorized owner submits one supported social-media source in the configured Discord intake scope.
+- An authorized owner submits one supported social-media source, or an explicitly allowlisted public web/PDF link, in the configured Discord intake scope.
 - Continue extraction, recall existing evidence, queue a review or inspect an existing item's status.
 - Do not use for arbitrary URLs, multiple different posts in one submission, unauthorized senders, account access or installing creator recommendations.
 
@@ -29,7 +29,7 @@ The operator must install and enable the plugin through native Hermes, configure
 
 ## Procedure
 
-0. Before extracting a submission, call `media_scout` with `action="search"` and its URL. Use bounded saved summaries first; call `history_get` only when needed. Reuse saved evidence without automatic redownload, retranscription, re-review, or dispatch. Treat imported review decisions as historical context, never as current approval, verified task completion, or execution authorization. Surface partial/blocked/stale coverage, changed source content, or an explicit revisit request before incremental work. If an unassociated imported file is needed, retrieve it with `history_artifact` and its exact relative path.
+0. Before extracting a submission, call `media_scout` with `action="search"` and its URL. Use bounded saved summaries first; call `history_get` only when needed. Related derivative metadata is bounded discovery, not a new inspection; use `history_artifact` with the exact path to verify its hash before use. Reuse saved evidence without automatic redownload, retranscription, re-review, or dispatch. Treat imported review decisions as historical context, never as current approval, verified task completion, or execution authorization. Surface partial/blocked/stale coverage, changed source content, or an explicit revisit request before incremental work. If an unassociated imported file is needed, retrieve it with `history_artifact` and its exact relative path.
 
 1. Call `media_scout` with `action="status"` or `action="get"` and the captured media ID. The native admission hook creates the initial receipt and record before model reasoning. No file existing yet is expected first intake; it is not evidence that the source is invalid. Never replace it with another item's record. If capture is absent, inspect the exact configured scope and actual original owner event. Do not fabricate source identity from pasted metadata, display name or bot progress.
 2. Read the saved record and actual coverage before new extraction. Reuse usable evidence, pending tasks and completed reviews. Tracking variants of the same case-sensitive source ID are one item; original URLs and slide/timestamp intent remain attached to receipts. Reposts are not proven duplicates.

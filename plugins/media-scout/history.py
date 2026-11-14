@@ -86,7 +86,21 @@ def get(db, owner, query, data_root):
             try: path=_safe_artifact(data_root,rel,row[0])
             except (ValueError,OSError) as exc: return {"error":str(exc),"path":rel}
             artifacts.append({"path":str(path),"sha256":row[0],"size":row[1]})
-        out.append({"record":record,"record_sha256":digest,"filename":filename,"provenance":json.loads(provenance),"artifacts":artifacts,"missing_references":missing,"historical_only":True})
+        derivatives = {"count": 0, "has_more": False, "results": []}
+        if isinstance(media, str) and media not in {".", ".."} and "/" not in media and "\\" not in media and not any(ord(char) < 32 or ord(char) == 127 for char in media):
+            prefix = f"evidence/derived-cache/cache/{media}/"
+            # Range lookup uses the manifest primary-key index; only the record's
+            # owner-bound import batch is eligible, never a neighboring media ID.
+            batch = db.execute("SELECT batch_id FROM history_records WHERE record_key=? AND owner_id=?", (key, owner)).fetchone()
+            args = (batch[0], owner, prefix, prefix + "\U0010ffff")
+            where = ("f.batch_id=? AND i.owner_id=? AND f.relative_path>=? AND f.relative_path<? "
+                     "AND instr(f.relative_path, char(92))=0 AND instr(f.relative_path, '//')=0 "
+                     "AND instr('/'||f.relative_path||'/', '/../')=0 AND instr('/'||f.relative_path||'/', '/./')=0 "
+                     "AND substr(f.relative_path,-1)<>'/'")
+            total_files = db.execute(f"SELECT count(*) FROM history_files f JOIN history_imports i USING(batch_id) WHERE {where}", args).fetchone()[0]
+            files = db.execute(f"SELECT f.relative_path,f.sha256,f.size FROM history_files f JOIN history_imports i USING(batch_id) WHERE {where} ORDER BY f.relative_path LIMIT 10", args).fetchall()
+            derivatives = {"count": total_files, "has_more": total_files > len(files), "results": [{"path": p, "sha256": h, "size": s, "role": "retained derivative, not new inspection"} for p,h,s in files]}
+        out.append({"record":record,"record_sha256":digest,"filename":filename,"provenance":json.loads(provenance),"artifacts":artifacts,"related_derivatives":derivatives,"missing_references":missing,"historical_only":True})
     return {"count":total,"has_more":total>len(out),"records":out,"historical_only":True}
 
 
