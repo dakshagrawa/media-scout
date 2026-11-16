@@ -26,12 +26,10 @@ config_schema:
     type: string
     default: ""
     description: "Optional single-thread intake restriction for an isolated pilot; empty permits the configured parent channel."
-  allowed_web_hosts:
-    type: array
-    items:
-      type: string
-    default: []
-    description: "Exact lowercase public DNS hostnames for optional web/PDF-link intake; no wildcard or network validation."
+  allow_web_links:
+    type: boolean
+    default: true
+    description: "Allow single public HTTPS web-article and PDF links without a per-host allowlist."
   auto_review:
     type: boolean
     default: false
