@@ -66,7 +66,8 @@ def test_extract_single_identity_aliases_and_reject_ambiguity_or_malformed_socia
     assert sources.extract_one_source("https://youtu.be/AbCdEf12345 https://instagram.com/p/AbC123") is None
     assert sources.extract_one_source("https://instagram.com/p/AbC123 https://instagram.com.evil/p/Bad123") is None
     assert sources.extract_one_source("https://instagram.com/p/AbC123 https://x.com/a/status/nope") is None
-    assert sources.extract_one_source("reference https://example.com/article") is None
+    assert sources.extract_one_source("reference https://example.com/article").platform == "web"
+    assert sources.extract_one_source("reference https://example.com/article", allow_web_links=False) is None
 
 
 def test_rejects_noncontent_and_unsafe_url_forms():

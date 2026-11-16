@@ -242,16 +242,15 @@ def parse_web_identity(value: str) -> Source | None:
 _URL_RE = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 
 
-def extract_one_source(text: str, allowed_web_hosts=()) -> Source | None:
+def extract_one_source(text: str, allow_web_links: bool = True) -> Source | None:
     if not isinstance(text, str) or len(text) > MAX_TEXT:
         return None
     found: list[Source] = []
     matches = list(_URL_RE.finditer(text))
-    if len(matches) > 1 and isinstance(allowed_web_hosts, list):
+    if len(matches) > 1 and allow_web_links:
         for match in matches:
             candidate = match.group(0).rstrip(".,;:!?)]}")
-            web = parse_web_identity(candidate)
-            if web and urlsplit(candidate).hostname in allowed_web_hosts:
+            if parse_web_identity(candidate):
                 return None
     for match in matches:
         raw = match.group(0).rstrip(".,;:!?)]}")
@@ -260,10 +259,8 @@ def extract_one_source(text: str, allowed_web_hosts=()) -> Source | None:
         except ValueError:
             host = None
         parsed = parse_source_url(raw)
-        if not parsed and isinstance(allowed_web_hosts, list) and len(matches) == 1:
-            web = parse_web_identity(raw)
-            if web and host in allowed_web_hosts:
-                parsed = web
+        if not parsed and allow_web_links and len(matches) == 1:
+            parsed = parse_web_identity(raw)
         if parsed:
             found.append(parsed)
         elif host:

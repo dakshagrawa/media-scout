@@ -101,12 +101,10 @@ def _identity_shortcode(shortcode):
     return hashlib.sha256(shortcode.encode("ascii")).hexdigest()[:24]
 
 
-def capture_receipt(db, message_id, source, url, source_text="", *, allowed_web_hosts=()):
+def capture_receipt(db, message_id, source, url, source_text="", *, allow_web_links=True):
     parsed = parse_source_url(url)
-    if not parsed and isinstance(allowed_web_hosts, list):
-        web = parse_web_identity(url)
-        if web and urlsplit(url).hostname in allowed_web_hosts:
-            parsed = web
+    if not parsed and allow_web_links:
+        parsed = parse_web_identity(url)
     if not parsed or not isinstance(message_id, str) or not message_id or len(message_id) > 256:
         return None
     shortcode, source_url = parsed.identity_key, parsed.original_url
@@ -296,12 +294,12 @@ def _capture(ctx, **kwargs):
         text = kwargs.get("text")
         if not isinstance(text, str):
             return None
-        allowed_web_hosts = _config(ctx, "allowed_web_hosts", [])
-        found = extract_one_source(text, allowed_web_hosts)
+        allow_web_links = bool(_config(ctx, "allow_web_links", True))
+        found = extract_one_source(text, allow_web_links)
         if not found:
             return None
         db = _db()
-        captured = capture_receipt(db, message_id, {**source, "session_key": session_key}, found.original_url, text, allowed_web_hosts=allowed_web_hosts)
+        captured = capture_receipt(db, message_id, {**source, "session_key": session_key}, found.original_url, text, allow_web_links=allow_web_links)
         if captured and captured["media_id"] == _identity_shortcode(found.identity_key):
             return {"media_id": captured["media_id"], "source": source, "title": found.title or None, "platform": found.platform, "post_id": found.post_id}
     except Exception:
