@@ -1,13 +1,28 @@
-"""Bounded, owner-scoped retrieval for imported v1 informational history."""
+"""Bounded, owner-scoped retrieval for imported v1 informational history.
+
+Artifact verification policy (#12):
+- Entry points: history._safe_artifact (used by history.get and history.get_orphan),
+  import_v1._verify_file, import_v1._db_readonly, and retention.fingerprint.
+- Streaming: all verification entry points stream SHA-256 in 64 KiB chunks.
+- Limits: DEFAULT_MAX_ARTIFACT_BYTES (16 MiB) in history.py, MAX_FILE in import_v1.py,
+  and MAX_BYTES (50 MiB) in retention.py; oversized, grown, or truncated files fail closed.
+- Race boundary: path components are checked for symlinks before opening with O_NOFOLLOW
+  and verifying fstat(fd) S_ISREG, size, and post-read byte count. On POSIX, a concurrent
+  parent-directory swap before os.open remains outside this single-process threat model.
+"""
 from __future__ import annotations
 
 import hashlib
 import json
 import os
 import sqlite3
+import stat
 from pathlib import Path, PurePosixPath
 
 from .sources import parse_source_url
+
+CHUNK_SIZE = 65536
+DEFAULT_MAX_ARTIFACT_BYTES = 16 * 1024 * 1024
 
 
 def initialize_history(db):
@@ -56,34 +71,85 @@ def search(db, owner, query, limit=5) -> dict:
     return {"count":total,"results":out,"has_more":total>len(out),"historical_only":True}
 
 
-def _safe_artifact(root, rel, expected):
+def _safe_artifact(root, rel, expected, expected_size=None, *, max_bytes=DEFAULT_MAX_ARTIFACT_BYTES):
+    if not isinstance(rel, str) or not rel or "\x00" in rel or "\\" in rel:
+        raise ValueError("unsafe imported path")
     pp=PurePosixPath(rel)
-    if pp.is_absolute() or ".." in pp.parts or "\\" in rel: raise ValueError("unsafe imported path")
-    base=Path(root).expanduser(); path=base/"v1-import"/rel
+    if pp.is_absolute() or any(part in {".", ".."} for part in pp.parts):
+        raise ValueError("unsafe imported path")
+    if max_bytes <= 0:
+        raise ValueError("invalid artifact size limit")
+    if expected_size is not None and (type(expected_size) is not int or expected_size < 0):
+        raise ValueError("invalid manifest artifact size")
+    base=Path(root).expanduser(); v1_root=base/"v1-import"; path=v1_root/rel
     probe=Path(path.anchor)
     for part in path.parts[1:]:
         probe/=part
         if probe.is_symlink(): raise ValueError("symlink in imported artifact path")
-    if not path.is_file(): raise ValueError("imported artifact missing")
-    if hashlib.sha256(path.read_bytes()).hexdigest()!=expected: raise ValueError("imported artifact hash drift detected")
-    return path
+    try:
+        if not path.resolve(strict=True).is_relative_to(v1_root.resolve(strict=True)):
+            raise ValueError("imported artifact escaped root")
+    except FileNotFoundError as exc:
+        raise ValueError("imported artifact missing") from exc
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        fd = os.open(path, flags)
+    except FileNotFoundError as exc:
+        raise ValueError("imported artifact missing") from exc
+    except OSError as exc:
+        raise ValueError("symlink or unreadable imported artifact") from exc
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise ValueError("imported artifact is not a regular file")
+        if st.st_size > max_bytes:
+            raise ValueError("imported artifact exceeds size limit")
+        if expected_size is not None and st.st_size != expected_size:
+            raise ValueError("imported artifact size mismatch (hash drift detected)")
+        digest = hashlib.sha256()
+        total = 0
+        with os.fdopen(fd, "rb") as stream:
+            fd = -1
+            while True:
+                chunk = stream.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ValueError("imported artifact exceeds size limit")
+                if expected_size is not None and total > expected_size:
+                    raise ValueError("imported artifact size mismatch (hash drift detected)")
+                digest.update(chunk)
+        if expected_size is not None and total != expected_size:
+            raise ValueError("imported artifact size mismatch (hash drift detected)")
+        if total != st.st_size:
+            raise ValueError("imported artifact changed while reading")
+        if digest.hexdigest() != expected:
+            raise ValueError("imported artifact hash drift detected")
+        return path
+    finally:
+        if fd >= 0:
+            os.close(fd)
 
 
-def get(db, owner, query, data_root):
+def get(db, owner, query, data_root, *, max_bytes=DEFAULT_MAX_ARTIFACT_BYTES):
     rows,total=_matches(db,owner,query)
     if not rows:return {"error":"historical record not found"}
     out=[]
     for key,media,url,original,raw,filename,digest,json_digest,provenance in rows[:10]:
         if not json_digest or hashlib.sha256(raw.encode()).hexdigest()!=json_digest:return {"error":"imported record hash drift detected"}
         record=json.loads(raw)
+        batch = db.execute("SELECT batch_id FROM history_records WHERE record_key=? AND owner_id=?", (key, owner)).fetchone()
+        if not batch:return {"error":"historical record batch not found"}
+        batch_id = batch[0]
         linked={r[0] for r in db.execute("SELECT relative_path FROM history_record_files WHERE record_key=?",(key,))}
         linked.add(filename)
         missing=json.loads(db.execute("SELECT missing_evidence_json FROM history_records WHERE record_key=?",(key,)).fetchone()[0])
         artifacts=[]
         for rel in sorted(linked):
-            row=db.execute("SELECT sha256,size FROM history_files WHERE relative_path=? ORDER BY batch_id LIMIT 1",(rel,)).fetchone()
+            row=db.execute("SELECT f.sha256,f.size FROM history_files f JOIN history_imports i USING(batch_id) WHERE f.batch_id=? AND i.owner_id=? AND f.relative_path=?",(batch_id,owner,rel)).fetchone()
             if not row:return {"error":"linked imported artifact missing from manifest","path":rel}
-            try: path=_safe_artifact(data_root,rel,row[0])
+            try: path=_safe_artifact(data_root,rel,row[0],expected_size=row[1],max_bytes=max_bytes)
             except (ValueError,OSError) as exc: return {"error":str(exc),"path":rel}
             artifacts.append({"path":str(path),"sha256":row[0],"size":row[1]})
         derivatives = {"count": 0, "has_more": False, "results": []}
@@ -91,8 +157,7 @@ def get(db, owner, query, data_root):
             prefix = f"evidence/derived-cache/cache/{media}/"
             # Range lookup uses the manifest primary-key index; only the record's
             # owner-bound import batch is eligible, never a neighboring media ID.
-            batch = db.execute("SELECT batch_id FROM history_records WHERE record_key=? AND owner_id=?", (key, owner)).fetchone()
-            args = (batch[0], owner, prefix, prefix + "\U0010ffff")
+            args = (batch_id, owner, prefix, prefix + "\U0010ffff")
             where = ("f.batch_id=? AND i.owner_id=? AND f.relative_path>=? AND f.relative_path<? "
                      "AND instr(f.relative_path, char(92))=0 AND instr(f.relative_path, '//')=0 "
                      "AND instr('/'||f.relative_path||'/', '/../')=0 AND instr('/'||f.relative_path||'/', '/./')=0 "
@@ -104,10 +169,10 @@ def get(db, owner, query, data_root):
     return {"count":total,"has_more":total>len(out),"records":out,"historical_only":True}
 
 
-def get_orphan(db, owner, relative_path, data_root):
+def get_orphan(db, owner, relative_path, data_root, *, max_bytes=DEFAULT_MAX_ARTIFACT_BYTES):
     row=db.execute("SELECT f.sha256,f.size FROM history_files f JOIN history_imports i USING(batch_id) WHERE i.owner_id=? AND f.relative_path=?",(owner,relative_path)).fetchone()
     if not row:return {"error":"historical artifact not found"}
-    try:path=_safe_artifact(data_root,relative_path,row[0])
+    try:path=_safe_artifact(data_root,relative_path,row[0],expected_size=row[1],max_bytes=max_bytes)
     except (ValueError,OSError) as exc:return {"error":str(exc)}
     return {"artifact":{"path":str(path),"sha256":row[0],"size":row[1],"historical_only":True}}
 

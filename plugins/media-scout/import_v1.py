@@ -48,6 +48,37 @@ def _root(path, must_exist):
     return p
 
 
+def _hash_file_bounded(path, *, max_bytes=MAX_FILE, expected_size=None):
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise ImportError("nonregular file rejected during verification")
+        if st.st_size > max_bytes:
+            raise ImportError(f"file exceeds {max_bytes} bytes")
+        if expected_size is not None and st.st_size != expected_size:
+            raise ImportError("file size mismatch during verification")
+        digest = hashlib.sha256()
+        total = 0
+        with os.fdopen(fd, "rb") as stream:
+            fd = -1
+            while True:
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > max_bytes:
+                    raise ImportError(f"file exceeds {max_bytes} bytes")
+                digest.update(chunk)
+        if total != st.st_size or (expected_size is not None and total != expected_size):
+            raise ImportError("file changed during verification")
+        return digest.hexdigest(), total
+    finally:
+        if fd >= 0:
+            os.close(fd)
+
+
 def _safe_file(root, path):
     st = path.lstat()
     if not path.is_file() or path.is_symlink() or not stat.S_ISREG(st.st_mode):
@@ -61,10 +92,33 @@ def _safe_file(root, path):
         raise ImportError("unsafe relative path")
     if st.st_size > MAX_FILE:
         raise ImportError(f"file exceeds {MAX_FILE} bytes")
-    data = path.read_bytes()
-    if len(data) != st.st_size:
-        raise ImportError("source file changed while reading")
-    return rel, data
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        fst = os.fstat(fd)
+        if not stat.S_ISREG(fst.st_mode):
+            raise ImportError(f"unsafe or nonregular source entry: {path.name}")
+        if fst.st_size > MAX_FILE:
+            raise ImportError(f"file exceeds {MAX_FILE} bytes")
+        chunks = []
+        total = 0
+        with os.fdopen(fd, "rb") as stream:
+            fd = -1
+            while True:
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_FILE:
+                    raise ImportError(f"file exceeds {MAX_FILE} bytes")
+                chunks.append(chunk)
+        data = b"".join(chunks)
+        if len(data) != st.st_size or len(data) != fst.st_size:
+            raise ImportError("source file changed while reading")
+        return rel, data
+    finally:
+        if fd >= 0:
+            os.close(fd)
 
 
 def _identity_key(url):
@@ -160,8 +214,15 @@ def _db_readonly(dbpath, owner_id, records, files, destination):
             dest = destination / "v1-import" / f["relative_path"]
             if prior and prior != f["sha256"]:
                 raise ImportError(f"destination file conflict: {f['relative_path']}")
-            if dest.exists() and (dest.is_symlink() or not dest.is_file() or hashlib.sha256(dest.read_bytes()).hexdigest() != f["sha256"]):
-                raise ImportError(f"destination file conflict: {f['relative_path']}")
+            if dest.exists():
+                if dest.is_symlink() or not dest.is_file():
+                    raise ImportError(f"destination file conflict: {f['relative_path']}")
+                try:
+                    dest_hash, _ = _hash_file_bounded(dest, max_bytes=MAX_FILE, expected_size=f["size"])
+                except (ImportError, OSError) as exc:
+                    raise ImportError(f"destination file conflict: {f['relative_path']}") from exc
+                if dest_hash != f["sha256"]:
+                    raise ImportError(f"destination file conflict: {f['relative_path']}")
         return {"records": existing_records, "files": existing_files}
     finally:
         db.close()
@@ -340,9 +401,15 @@ def import_v1(source_root, destination_root, owner_id, *, apply=False, allow_mis
     finally: db.close()
 
 
-def _verify_file(root, path, expected):
+def _verify_file(root, path, expected, expected_size=None, *, max_bytes=MAX_FILE):
     _reject_symlink_components(path)
-    return root in path.resolve(strict=False).parents and path.is_file() and not path.is_symlink() and hashlib.sha256(path.read_bytes()).hexdigest()==expected
+    if root not in path.resolve(strict=False).parents or not path.is_file() or path.is_symlink():
+        return False
+    try:
+        actual, _ = _hash_file_bounded(path, max_bytes=max_bytes, expected_size=expected_size)
+    except (ImportError, OSError):
+        return False
+    return actual == expected
 
 
 def main(argv=None):

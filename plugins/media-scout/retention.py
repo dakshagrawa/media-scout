@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import secrets
+import stat
 import time
 
 MAX_FILES = 100
@@ -30,14 +32,29 @@ def safe_file(root: Path, relative: str) -> Path:
 
 
 def fingerprint(path: Path):
-    stat = path.stat()
-    if stat.st_size > MAX_BYTES:
-        raise ValueError("artifact exceeds bounded cleanup size")
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(65536), b""):
-            digest.update(block)
-    return stat.st_size, digest.hexdigest()
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise ValueError("artifact must be a regular file")
+        if st.st_size > MAX_BYTES:
+            raise ValueError("artifact exceeds bounded cleanup size")
+        digest = hashlib.sha256()
+        total = 0
+        with os.fdopen(fd, "rb") as stream:
+            fd = -1
+            for block in iter(lambda: stream.read(65536), b""):
+                total += len(block)
+                if total > MAX_BYTES:
+                    raise ValueError("artifact exceeds bounded cleanup size")
+                digest.update(block)
+        if total != st.st_size:
+            raise ValueError("artifact changed while fingerprinting")
+        return total, digest.hexdigest()
+    finally:
+        if fd >= 0:
+            os.close(fd)
 
 
 def register_file(db, root, relative, media_id, kind, expires_at):
