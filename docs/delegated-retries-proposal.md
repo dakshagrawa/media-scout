@@ -2,11 +2,11 @@
 
 ## Scope
 
-This document records the verified authorization path in `plugins/media-scout` and proposes a bounded, owner-authorized retry mechanism for existing media submissions. It does not change production permissions, weaken owner-only Discord admission, or authorize rollout.
+This document records the verified authorization path in `plugins/media-scout` and proposes a bounded, owner-authorized retry mechanism for existing media submissions, including those in [backlog reconciliation (#4)](https://github.com/dakshagrawa/media-scout/issues/4). It does not change production permissions, weaken owner-only Discord admission, or authorize rollout.
 
 ## Verified Enforcement Chain
 
-1. **Gateway admission (`_admission` and `_capture` in `plugins/media-scout/__init__.py`)**:
+1. **Post-admission receipt capture (`_admission` and `_capture` in `plugins/media-scout/__init__.py`)**:
    - Incoming Discord events are checked against configured `owner_id`, `guild_id`, and `parent_channel_id` (plus optional `intake_thread_id`).
    - Only messages authored by `owner_id` in the configured scope create a `receipts` row and a `media` record.
 2. **Tool execution (`_handler` and `native_handler` in `plugins/media-scout/__init__.py`)**:
@@ -26,17 +26,19 @@ When `discord.allow_bots: mentions` is enabled, a separate assistant bot can men
 
 ## Proposed Design: Host-Authenticated Native Kanban Handoff
 
-Keep Discord bot mentions fail-closed. Support owner-authorized retries only through a host-authenticated native Hermes Kanban task bound to an existing owner receipt:
+Keep Discord bot mentions fail-closed. No currently verified Media Scout interface accepts a delegated retry grant. `NativeBridge.ensure_review` routes and verifies an already-authorized review; it does not grant extraction authority. Hermes Kanban can carry an opaque request reference, but board membership and task contents are not proof of the owner's consent. Native clarification can collect a choice; its forwarded text is not an authorization credential. A future implementation needs an authenticated grant channel and must fail closed if the supported interfaces cannot provide one.
+
+Until then, the owner should resend the original link in the configured intake thread if no receipt exists, or request a retry directly under their own identity if it does. If a stale exclusive claim blocks the retry, the owner must first confirm the old writer has stopped and use the documented owner-only release command.
+
+A proposal for an authenticated grant and Kanban transport follows:
 
 1. **Existing Receipt Prerequisite**:
    - A delegated retry may target only a `media_id` that already has a saved owner `receipts` row in the configured `guild_id`, `parent_channel_id`, and `thread_id`.
    - If no saved receipt exists, fail closed and return an actionable owner-resend instruction.
 2. **Bound Retry Payload**:
-   - The principal profile creates a native Kanban task on a dedicated retry board (or explicit retry contract) containing:
-     - `media_id`, `owner_id`, `guild_id`, `parent_channel_id`, `thread_id`, `source_url`
-     - `requested_by_profile` (distinct delegate identity, never substituted for `owner_id`)
-     - `owner_confirmed_at` and `authorization_scope` (`extract_only` or `extract_and_review`)
-     - `idempotency_key` (`retry:<owner_id>:<media_id>:<attempt_nonce>`)
+   - A trusted service must record an expiring, revocable grant from the authenticated owner. Bind it to the exact receipt and source, original guild/channel/thread, delegate principal, operation, consent scope, and attempt cap.
+   - Pass only the opaque grant reference through native Kanban. Require the dispatcher to obtain delegate identity from trusted runtime context and match it to the stored grant. A caller-supplied timestamp, identity, or task body is not proof of consent.
+   - Reserve attempts atomically against the grant and operation. On an ambiguous dispatch, verify the existing claim or review task before allowing another attempt.
 3. **Admission and Safeguards**:
    - Verify `media_id`, `owner_id`, `source_url`, and `thread_id` against the local `receipts` table.
    - Preserve `_owner_intent_overrides_review` and opt-out rules.
